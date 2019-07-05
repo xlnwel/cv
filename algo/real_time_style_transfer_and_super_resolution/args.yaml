@@ -1,0 +1,30 @@
+batch_size: 32
+image_shape: [256, 256, 3]
+
+train_dir: data/train2014
+valid_dir: data/val2014
+style_image_path: data/style/chinese_style.jpg
+style_weights: 100
+style_layers: [relu1_1, relu2_1, relu3_1, relu4_1, relu5_1]
+content_weight: 7.5
+content_layer: relu4_2
+tv_weight: 1.e-4    # this weight is smaller since we do not divide the tv loss explicitly by H*W*C in cod
+
+vgg_path: 'data/imagenet-vgg-verydeep-19.mat'
+
+# model path: model_root_dir/model_name
+# tensorboard path: log_root_dir/model_name
+model_root_dir: saved_models            # root path for savinng models
+log_root_dir: logs  # root path for tensorboard logs
+model_name: baseline
+
+n_iterations: 2000
+
+style_transfer:
+    conv_params: [[32, 9, 1], [64, 3, 2], [128, 3, 2]]
+    convtras_params: [[64, 3, 2], [32, 3, 2]]
+    final_conv_params: [3, 9, 1]
+    n_residuals: 5
+    padding: reflect
+    norm: instance
+    learning_rate: 1e-3
