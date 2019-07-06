@@ -12,7 +12,7 @@ class StyleTransfer(Module):
     def __init__(self, 
                  name, 
                  args, 
-                 graph,
+                 graph, 
                  image, 
                  scope_prefix='',
                  log_tensorboard=False,
@@ -58,36 +58,51 @@ class StyleTransfer(Module):
             filters, kernel_size, strides = self.args['final_conv_params']
             x = self.conv_norm_activation(x, filters, kernel_size, strides, norm=norm, activation=tf.tanh, name='FinalConv')
 
-            y = 150 * x + 255. / 2
+            x = 127.5 * x + 127.5
 
-        return y
+        return x
 
-# code from https://github.com/ChengBinJin/Real-time-style-transfer
+    def conv_resnet(self, x, filters, kernel_size, strides=1, padding='same', norm=None, name=None):
+        y = x
+        with tf.variable_scope(name):
+            y = self.conv_norm_activation(y, filters, kernel_size, strides, padding=padding, norm=norm, name='ConvNormAct1')
+            y = self.conv_norm_activation(y, filters, kernel_size, strides, padding=padding, norm=norm, activation=None, name='ConvNormAct2')
+
+            x += y
+
+        return x
+
+# code originally from https://github.com/lengstrom/fast-style-transfer/blob/master/src/vgg.py
+# Copyright (c) 2015-2016 Anish Athalye. Released under GPLv3.
 class VGG19:
-    def __init__(self, data_path):
-        self.data = sio.loadmat(data_path)
+    MEAN_PIXEL = np.array([123.68, 116.779, 103.939])
+    layers = (
+        'conv1_1', 'relu1_1', 'conv1_2', 'relu1_2', 'pool1',
+        'conv2_1', 'relu2_1', 'conv2_2', 'relu2_2', 'pool2',
+        'conv3_1', 'relu3_1', 'conv3_2', 'relu3_2', 'conv3_3',
+        'relu3_3', 'conv3_4', 'relu3_4', 'pool3',
+        'conv4_1', 'relu4_1', 'conv4_2', 'relu4_2', 'conv4_3',
+        'relu4_3', 'conv4_4', 'relu4_4', 'pool4',
+        'conv5_1', 'relu5_1', 'conv5_2', 'relu5_2', 'conv5_3',
+        'relu5_3', 'conv5_4', 'relu5_4'
+    )
+
+    def __init__(self, vgg_path):
+        self.data = sio.loadmat(vgg_path)
         self.weights = self.data['layers'][0]
 
-        self.mean_pixel = np.array([123.68, 116.779, 103.939])
-        self.layers = (
-            'conv1_1', 'relu1_1', 'conv1_2', 'relu1_2', 'pool1',
-            'conv2_1', 'relu2_1', 'conv2_2', 'relu2_2', 'pool2',
-            'conv3_1', 'relu3_1', 'conv3_2', 'relu3_2', 'conv3_3', 'relu3_3', 'conv3_4', 'relu3_4', 'pool3',
-            'conv4_1', 'relu4_1', 'conv4_2', 'relu4_2', 'conv4_3', 'relu4_3', 'conv4_4', 'relu4_4', 'pool4',
-            'conv5_1', 'relu5_1', 'conv5_2', 'relu5_2', 'conv5_3', 'relu5_3', 'conv5_4', 'relu5_4'
-        )
 
-    def __call__(self, img, name='vgg', is_reuse=False):
-        with tf.variable_scope(name, reuse=is_reuse):
-            img_pre = self.preprocess(img)
+    def __call__(self, image, name='vgg', reuse=False):
+        with tf.variable_scope(name, reuse=reuse):
+            image = self.preprocess(image)
 
-            net_dic = {}
-            current = img_pre
-            for i, name in enumerate(self.layers):
+            net = {}
+            current = image
+            for i, name in enumerate(VGG19.layers):
                 kind = name[:4]
                 if kind == 'conv':
                     kernels, bias = self.weights[i][0][0][0][0]
-                    # matconvent: weights are [width, height, in_channels, out_channels]
+                    # matconvnet: weights are [width, height, in_channels, out_channels]
                     # tensorflow: weights are [height, width, in_channels, out_channels]
                     kernels = np.transpose(kernels, (1, 0, 2, 3))
                     bias = bias.reshape(-1)
@@ -96,24 +111,20 @@ class VGG19:
                     current = tf.nn.relu(current)
                 elif kind == 'pool':
                     current = self._pool_layer(current)
+                net[name] = current
 
-                net_dic[name] = current
+        assert len(net) == len(VGG19.layers)
+        return net
 
-            assert len(net_dic) == len(self.layers)
-
-        return net_dic
-
-    @staticmethod
-    def _conv_layer(input_, weights, bias):
-        conv = tf.nn.conv2d(input_, tf.constant(weights), strides=(1, 1, 1, 1), padding='SAME')
+    def _conv_layer(self, x, weights, bias):
+        conv = tf.nn.conv2d(x, tf.constant(weights), strides=(1, 1, 1, 1), padding='SAME')
         return tf.nn.bias_add(conv, bias)
 
-    @staticmethod
-    def _pool_layer(input_):
-        return tf.nn.max_pool(input_, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1), padding='SAME')
+    def _pool_layer(self, x):
+        return tf.nn.max_pool(x, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1), padding='SAME')
 
-    def preprocess(self, img):
-        return img - self.mean_pixel
+    def preprocess(self, image):
+        return image - VGG19.MEAN_PIXEL
 
-    def unprocess(self, img):
-        return img + self.mean_pixel
+    def unprocess(self, image):
+        return image + VGG19.MEAN_PIXEL

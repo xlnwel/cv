@@ -29,7 +29,7 @@ def layer_norm(x, name='LayerNorm', epsilon=1e-5):
 
         x = (x - mean) / std
 
-        shape = (1,)
+        shape = x.shape[1:]
         gamma = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(1))
         beta = tf.get_variable('beta', shape=shape, initializer=constant_initializer(0))
         x = gamma * x + beta
@@ -44,7 +44,7 @@ def instance_norm(x, name='InstanceNorm', epsilon=1e-5):
 
         x = (x - mean) / std
 
-        shape = x.shape.as_list()[-1]
+        shape = x.shape[-1:]
         gamma = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(1))
         beta = tf.get_variable('beta', shape=shape, initializer=constant_initializer(0))
 
@@ -53,19 +53,17 @@ def instance_norm(x, name='InstanceNorm', epsilon=1e-5):
     return x
 
 def norm_activation(x, norm=None, activation=None, training=False, name=None):
-    def fn(x):
+    def fn():
+        y = x
         if norm:
-            x = (norm(x, training=training) if
+            y = (norm(y, training=training) if
                     'batch_normalization' in str(norm) else
-                    norm(x))
+                    norm(y))
         if activation:
-            x = activation(x)
+            y = activation(y)
+        return y
 
-    if name:
-        with tf.variable_scope(name):
-            fn(x)
-    else:
-        fn(x)
+    x = wrap_layer(name, fn)
 
     return x
 
@@ -129,3 +127,12 @@ def padding(x, height, width, mode='constant', name=None):
     assert_colorize(mode.lower() == 'constant' or mode.lower() == 'reflect' or mode.lower() == 'symmetric', 
         f'Padding should be "constant", "reflect", or "symmetric", but got {mode}.')
     return tf.pad(x, [[0, 0], [height, height], [width, width], [0, 0]], mode, name=name)
+
+def wrap_layer(name, layer_imp):
+    if name:
+        with tf.variable_scope(name):
+            x = layer_imp()
+    else:
+        x = layer_imp()
+
+    return x

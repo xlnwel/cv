@@ -7,7 +7,7 @@ from utility import tf_utils
 from utility.utils import pwc
 from utility.debug_tools import assert_colorize
 
-# TODO: return layer object for TF V2
+
 class Layer():
     def __init__(self, name, args):
         self.name = name
@@ -51,7 +51,7 @@ class Layer():
 
             return y
 
-        x = self.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
 
@@ -67,7 +67,7 @@ class Layer():
 
         with tf.variable_scope(name):
             y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, training=self.training)
-            y = self.dense_norm_activation(y, units, kernel_initializer=tf_utils.kaiming_initializer(), 
+            y = self.dense_norm_activation(y, units, kernel_initializer=kernel_initializer, 
                                             norm=norm, activation=tf.nn.relu)
             y = self.dense(y, units, kernel_initializer=kernel_initializer)
             x += y
@@ -90,7 +90,7 @@ class Layer():
 
             return y
         
-        x = self.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
 
@@ -119,7 +119,7 @@ class Layer():
             
             return y
 
-        x = self.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
     
@@ -137,7 +137,7 @@ class Layer():
         with tf.variable_scope(name):
             y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, training=self.training, name='NormAct')
             y = self.conv_norm_activation(y, filters, kernel_size=kernel_size, strides=strides, padding=padding, 
-                                           kernel_initializer=tf_utils.kaiming_initializer(), 
+                                           kernel_initializer=kernel_initializer, 
                                            norm=norm, activation=tf.nn.relu)
             y = self.conv(y, filters, kernel_size, strides=strides, padding=padding,
                            kernel_initializer=kernel_initializer)
@@ -165,7 +165,7 @@ class Layer():
 
             return y
         
-        x = self.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
 
@@ -190,7 +190,7 @@ class Layer():
 
             return y
 
-        x = self.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
 
@@ -270,7 +270,7 @@ class Layer():
             
             return y
 
-        x = self.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
 
@@ -287,7 +287,7 @@ class Layer():
         with tf.variable_scope(name):
             y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, 
                                          training=self.training)
-            y = self.noisy_norm_activation(y, units, kernel_initializer=tf_utils.kaiming_initializer(), 
+            y = self.noisy_norm_activation(y, units, kernel_initializer=kernel_initializer, 
                                             norm=norm, activation=tf.nn.relu, sigma=sigma)
             y = self.noisy(y, units, kernel_initializer=kernel_initializer, sigma=sigma)
             x += y
@@ -311,7 +311,7 @@ class Layer():
 
             return y
         
-        x = self.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
 
@@ -386,11 +386,3 @@ class Layer():
 
         return name
 
-    def wrap_layer(self, name, layer_imp):
-        if name:
-            with tf.variable_scope(name):
-                x = layer_imp()
-        else:
-            x = layer_imp()
-
-        return x

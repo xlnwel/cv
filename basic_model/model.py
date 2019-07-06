@@ -237,8 +237,8 @@ class Model(Module):
 
     def save(self):
         if hasattr(self, 'saver'):
-            pwc('Model saved', )
-            return self.saver.save(self.sess, self.model_file, 'magenta')
+            pwc('Model saved', 'magenta')
+            return self.saver.save(self.sess, self.model_file)
         else:
             # no intention to treat no saver as an error, just print a warning message
             pwc('No saver is available', 'magenta')
