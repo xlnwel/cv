@@ -116,11 +116,11 @@ class RTSTSRModel(Model):
         with tf.Session() as sess:
             style_grams = sess.run(grams, feed_dict={self.st_net.st_image: self.style_image})
 
-        loss = tf.constant(0.)
+        losses = []
         with tf.name_scope('style_loss'):
             for i, (style_gram, gram) in enumerate(zip(style_grams, grams)):
-                loss += self.style_weights[i] * 2 * tf.nn.l2_loss(style_gram - gram) / self.batch_size
-        
+                losses.append(self.style_weights[i] * 2 * tf.nn.l2_loss(style_gram - gram) / style_gram.size)
+            loss = tf.reduce_mean(losses)
         return loss
 
     def _content_loss(self, vgg, vgg_features):
@@ -155,3 +155,4 @@ class RTSTSRModel(Model):
                 tf.summary.histogram('st_image_hist_', self.st_image)
                 style = tf.constant(self.style_image)
                 tf.summary.image('style_image_', style)
+                tf.summary.histogram('style_image_hist_', self.style_image)
