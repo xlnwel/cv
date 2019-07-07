@@ -18,7 +18,7 @@ from utility.image_processing import ImageGenerator
 from utility.schedule import PiecewiseSchedule
 
 
-class RTSTSRModel(Model):
+class StyleTransferModel(Model):
     """ Interface """
     def __init__(self, 
                  name, 
@@ -33,6 +33,7 @@ class RTSTSRModel(Model):
         self.image_shape = args['image_shape']
         self.train_dir = args['train_dir']
         self.valid_dir = args['valid_dir']
+        self.eval_image = self._get_image(args['eval_image_path'])
         self.style_image = self._get_image(args['style_image_path'])
         self.style_layers = args['style_layers']
         self.style_weights = args['style_weights']
@@ -60,8 +61,7 @@ class RTSTSRModel(Model):
             summary = self.sess.run(self.graph_summary, feed_dict={self.image: self.data_generator.sample()})
             self.writer.add_summary(summary, t)
         if image_path:
-            image = self._get_image(image_path)
-            st_image = self.sess.run(self.st_image, feed_dict={self.image: image})
+            st_image = self.sess.run(self.st_image, feed_dict={self.image: self.eval_image})
             st_image = np.squeeze(st_image)
             image_filename, image_ext = osp.splitext(image_path)
             _, image_filename = osp.split(image_filename)

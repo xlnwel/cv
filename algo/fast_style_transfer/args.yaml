@@ -4,6 +4,7 @@ image_shape: [256, 256, 3]
 train_dir: data/train2014
 valid_dir: data/val2014
 results_dir: data/results
+eval_image_path: data/content/stata.jpg
 style_image_path: data/style/udnie.jpg
 style_weights: 100
 style_layers: [relu1_1, relu2_1, relu3_1, relu4_1, relu5_1]
