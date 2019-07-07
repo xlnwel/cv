@@ -3,10 +3,11 @@ image_shape: [256, 256, 3]
 
 train_dir: data/train2014
 valid_dir: data/val2014
-style_image_path: data/style/wave.jpg
+results_dir: data/results
+style_image_path: data/style/udnie.jpg
 style_weights: 100
 style_layers: [relu1_1, relu2_1, relu3_1, relu4_1, relu5_1]
-content_weight: 7.5
+content_weight: 2
 content_layer: relu4_2
 tv_weight: 200    # this weight is smaller since we do not divide the tv loss explicitly by H*W*C in cod
 

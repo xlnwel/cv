@@ -1,17 +1,21 @@
+import os
+import os.path as osp
 from time import time
 from collections import deque
 import numpy as np
 from skimage.data import imread
 from skimage.transform import resize
+from skimage.io import imsave
 import tensorflow as tf
 
 from utility.debug_tools import timeit
 from utility.utils import pwc
-from utility.tf_utils import stats_summary
+from utility.tf_utils import square_sum
 from utility.image_processing import image_dataset
 from basic_model.model import Model
 from networks import StyleTransfer, VGG19
 from utility.image_processing import ImageGenerator
+from utility.schedule import PiecewiseSchedule
 
 
 class RTSTSRModel(Model):
@@ -29,8 +33,7 @@ class RTSTSRModel(Model):
         self.image_shape = args['image_shape']
         self.train_dir = args['train_dir']
         self.valid_dir = args['valid_dir']
-        style_image = imread(args['style_image_path'])
-        self.style_image = np.expand_dims(resize(style_image, self.image_shape), 0)
+        self.style_image = self._get_image(args['style_image_path'])
         self.style_layers = args['style_layers']
         self.style_weights = args['style_weights']
         if not isinstance(self.style_weights, list):
@@ -39,7 +42,9 @@ class RTSTSRModel(Model):
         self.content_layer = args['content_layer']
         self.tv_weight = args['tv_weight']
 
-        self.data_generator = ImageGenerator(self.train_dir, self.image_shape, self.batch_size, norm=False)
+        if log_tensorboard:
+            self.data_generator = ImageGenerator(self.valid_dir, self.image_shape, self.batch_size, preserve_range=False)
+
         super().__init__(name, args, 
                          sess_config=sess_config, 
                          save=save, 
@@ -48,24 +53,41 @@ class RTSTSRModel(Model):
                          log_stats=log_stats, 
                          device=device)
 
+    def eval(self, image_path=None, t=None):
+        if self.log_tensorboard:
+            if t is None:
+                raise ValueError
+            summary = self.sess.run(self.graph_summary, feed_dict={self.image: self.data_generator.sample()})
+            self.writer.add_summary(summary, t)
+        if image_path:
+            image = self._get_image(image_path)
+            st_image = self.sess.run(self.st_image, feed_dict={self.image: image})
+            st_image = np.squeeze(st_image)
+            image_filename, image_ext = osp.splitext(image_path)
+            _, image_filename = osp.split(image_filename)
+            _, style_filename = osp.split(self.args['style_image_path'])
+            results_dir = self.args['results_dir']
+            if not osp.exists(results_dir):
+                os.mkdir(results_dir)
+            imsave(f'data/results/{image_filename}-{style_filename}{image_ext}', st_image)
+
     def train(self):
         start = time()
         times = deque(maxlen=100)
         for i in range(self.args['n_iterations']):
-            if self.log_tensorboard:
-                t, (_, summary) = timeit(lambda: self.sess.run([self.opt_op, self.graph_summary]))
-                times.append(t)
-                if i % 100 == 0:
-                    self.writer.add_summary(summary, i)
-                    self.save()
-            else:
-                t, _ = timeit(self.sess.run([self.opt_op]))
-            
+            t, _ = timeit(lambda: self.sess.run([self.opt_op]))
+            times.append(t)
+            if i % 100 == 0:
+                self.eval('data/content/stata.jpg', i)
+                self.save()
+
             pwc(f'Iterator {i}:\t\t{(time() - start) / 60:.3f} minutes\n'
-                f'Average {np.mean(times):.3F} seconds per pass', color='yellow')
+                f'Average {np.mean(times):.3F} seconds per pass', color='green')
         
     def _build_graph(self):
-        self.image = self._prepare_data()
+        with tf.device('/CPU: 0'):
+            self.image = self._prepare_data()
+
         self.st_net = StyleTransfer('StyleTransferNet', self.args['style_transfer'], 
                                     self.graph, self.image, scope_prefix=self.name,
                                     log_tensorboard=self.log_tensorboard,
@@ -84,18 +106,15 @@ class RTSTSRModel(Model):
         with tf.name_scope('loss'):
             self.loss = self.style_loss + self.content_loss + self.tv_loss
 
-        self.opt_op, _ = self.st_net._optimization_op(self.loss)
+        self.opt_op, _, _ = self.st_net._optimization_op(self.loss)
 
-        self._log_loss()
+        with tf.device('/CPU: 0'):
+            self._log_loss()
 
     def _prepare_data(self):
         with tf.name_scope('image'):
             # Do not normalize image here, do it in StyleTransfer
-            # ds = image_dataset(self.train_dir, self.image_shape[:-1], self.batch_size, False)
-            sample_type = (tf.float32)
-            sample_shape = (None, *self.image_shape)
-            ds = tf.data.Dataset.from_generator(self.data_generator, sample_type, sample_shape)
-            ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
+            ds = image_dataset(self.train_dir, self.image_shape[:-1], self.batch_size, False)
             image = ds.make_one_shot_iterator().get_next('images')
 
         return image
@@ -113,33 +132,33 @@ class RTSTSRModel(Model):
         return grams
     
     def _style_loss(self, grams):
-        with tf.Session() as sess:
-            style_grams = sess.run(grams, feed_dict={self.st_net.st_image: self.style_image})
+        style_grams = self.sess.run(grams, feed_dict={self.st_image: self.style_image})
 
         losses = []
         with tf.name_scope('style_loss'):
             for i, (style_gram, gram) in enumerate(zip(style_grams, grams)):
-                losses.append(self.style_weights[i] * 2 * tf.nn.l2_loss(style_gram - gram) / style_gram.size)
+                size = style_gram.size * self.batch_size
+                losses.append(self.style_weights[i] * square_sum(style_gram - gram) / size)
             loss = tf.reduce_mean(losses)
         return loss
 
     def _content_loss(self, vgg, vgg_features):
         content_vgg_features = vgg(self.image, reuse=True)
         layer = self.content_layer
-        size = np.prod(vgg_features[layer].shape.as_list()[1:])
+        size = np.prod(vgg_features[layer].shape.as_list()[1:]) * self.batch_size
 
         assert vgg_features[layer].shape.as_list() == content_vgg_features[layer].shape.as_list()
         with tf.name_scope('content_loss'):
-            loss = self.content_weight / size * 2 * tf.nn.l2_loss(vgg_features[layer] - content_vgg_features[layer])
+            loss = self.content_weight / size * square_sum(vgg_features[layer] - content_vgg_features[layer])
 
         return loss
 
     def _tv_loss(self, st_image):
         with tf.name_scope('tv_loss'):
-            tv_size_1 = np.prod(st_image[:, 1:, :, :].shape.as_list()[1:])
-            tv_size_2 = np.prod(st_image[:, :, 1:, :].shape.as_list()[1:])
-            return self.tv_weight * 2 * (tf.nn.l2_loss(st_image[:, 1:, :, :] - st_image[:, :-1, :, :]) / tv_size_1
-                                        + tf.nn.l2_loss(st_image[:, :, 1:, :] - st_image[:, :, :-1, :]) / tv_size_2)
+            tv_size_1 = np.prod(st_image[:, 1:, :, :].shape.as_list()[1:]) * self.batch_size
+            tv_size_2 = np.prod(st_image[:, :, 1:, :].shape.as_list()[1:]) * self.batch_size
+            return self.tv_weight * (square_sum(st_image[:, 1:, :, :] - st_image[:, :-1, :, :]) / tv_size_1
+                                    + square_sum(st_image[:, :, 1:, :] - st_image[:, :, :-1, :]) / tv_size_2)
 
     def _log_loss(self):
         if self.log_tensorboard:
@@ -156,3 +175,10 @@ class RTSTSRModel(Model):
                 style = tf.constant(self.style_image)
                 tf.summary.image('style_image_', style)
                 tf.summary.histogram('style_image_hist_', self.style_image)
+
+    def _get_image(self, image_path):
+        image = imread(image_path)
+        image = resize(image, self.image_shape, preserve_range=True)
+        image = np.expand_dims(image, 0)
+
+        return image

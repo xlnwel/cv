@@ -19,7 +19,7 @@ def image_dataset(filedir, image_size, batch_size, norm=True):
         image = tf.read_file(path)
         return preprocess_image(image)
 
-    all_image_paths = [str(f) for f in Path(filedir).glob('*/*')]
+    all_image_paths = [str(f) for f in Path(filedir).glob('*')]
     ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
     ds = ds.shuffle(buffer_size = len(all_image_paths))
     ds = ds.map(load_and_preprocess_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -30,12 +30,12 @@ def image_dataset(filedir, image_size, batch_size, norm=True):
     return ds
 
 class ImageGenerator:
-    def __init__(self, filedir, image_shape, batch_size, norm=True):
+    def __init__(self, filedir, image_shape, batch_size, preserve_range=True):
         self.all_image_paths = [str(f) for f in Path(filedir).glob('*')]
         self.total_images = len(self.all_image_paths)
         self.image_shape = image_shape
         self.batch_size = batch_size
-        self.norm = norm
+        self.preserve_range = preserve_range
         self.idx = 0
 
     def __call__(self):
@@ -48,7 +48,7 @@ class ImageGenerator:
         
         batch_path = self.all_image_paths[self.idx: self.idx + self.batch_size]
         batch_image = [imread(path) for path in batch_path]
-        batch_image = np.array([resize(img, self.image_shape) for img in batch_image], dtype=np.float32)
+        batch_image = np.array([resize(img, self.image_shape, preserve_range=self.preserve_range) for img in batch_image], dtype=np.float32)
         self.idx += self.batch_size
         if self.idx >= self.total_images:
             self.idx = 0

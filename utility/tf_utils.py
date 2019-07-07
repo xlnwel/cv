@@ -89,6 +89,9 @@ def logsumexp(value, axis=None, keepdims=False):
         max_value = tf.reduce_max(value)
         return max_value + tf.log(tf.reduce_sum(tf.exp(value - max_value)))
 
+def square_sum(x):
+    return 2 * tf.nn.l2_loss(x)
+    
 def get_tensor(sess, name=None, op_name=None):
     if name is None and op_name is None:
         raise ValueError

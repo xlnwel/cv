@@ -59,7 +59,7 @@ class StyleTransfer(Module):
             x = self.conv_norm_activation(x, filters, kernel_size, strides, norm=norm, activation=tf.tanh, name='FinalConv')
 
             x = 127.5 * x + 127.5
-
+            
         return x
 
     def conv_resnet(self, x, filters, kernel_size, strides=1, padding='same', norm=None, name=None):
