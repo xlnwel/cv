@@ -11,10 +11,9 @@ import tensorflow as tf
 from utility.debug_tools import timeit
 from utility.utils import pwc
 from utility.tf_utils import square_sum
-from utility.image_processing import image_dataset
+from utility.image_processing import get_image, image_dataset, ImageGenerator
 from basic_model.model import Model
 from networks import StyleTransfer, VGG19
-from utility.image_processing import ImageGenerator
 from utility.schedule import PiecewiseSchedule
 
 
@@ -33,8 +32,9 @@ class StyleTransferModel(Model):
         self.image_shape = args['image_shape']
         self.train_dir = args['train_dir']
         self.valid_dir = args['valid_dir']
-        self.eval_image = self._get_image(args['eval_image_path'])
-        self.style_image = self._get_image(args['style_image_path'])
+        self.eval_image_path = args['eval_image_path']
+        self.eval_image = get_image(args['eval_image_path'], image_shape=self.image_shape)
+        self.style_image = get_image(args['style_image_path'], image_shape=self.image_shape)
         self.style_layers = args['style_layers']
         self.style_weights = args['style_weights']
         if not isinstance(self.style_weights, list):
@@ -54,22 +54,22 @@ class StyleTransferModel(Model):
                          log_stats=log_stats, 
                          device=device)
 
-    def eval(self, image_path=None, t=None):
+    def eval(self, eval_image=False, t=None):
         if self.log_tensorboard:
             if t is None:
                 raise ValueError
             summary = self.sess.run(self.graph_summary, feed_dict={self.image: self.data_generator.sample()})
             self.writer.add_summary(summary, t)
-        if image_path:
+        if eval_image:
             st_image = self.sess.run(self.st_image, feed_dict={self.image: self.eval_image})
             st_image = np.squeeze(st_image)
-            image_filename, image_ext = osp.splitext(image_path)
+            image_filename, _ = osp.splitext(self.eval_image_path)
             _, image_filename = osp.split(image_filename)
             _, style_filename = osp.split(self.args['style_image_path'])
             results_dir = self.args['results_dir']
             if not osp.exists(results_dir):
                 os.mkdir(results_dir)
-            imsave(f'data/results/{image_filename}-{style_filename}{image_ext}', st_image)
+            imsave(f'data/results/{image_filename}-{style_filename}', st_image)
 
     def train(self):
         start = time()
@@ -175,10 +175,3 @@ class StyleTransferModel(Model):
                 style = tf.constant(self.style_image)
                 tf.summary.image('style_image_', style)
                 tf.summary.histogram('style_image_hist_', self.style_image)
-
-    def _get_image(self, image_path):
-        image = imread(image_path)
-        image = resize(image, self.image_shape, preserve_range=True)
-        image = np.expand_dims(image, 0)
-
-        return image

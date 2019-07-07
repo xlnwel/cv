@@ -7,6 +7,14 @@ import tensorflow as tf
 
 from utility.debug_tools import pwc, assert_colorize
 
+def get_image(image_path, image_shape=None, preserve_range=False):
+    image = imread(image_path)
+    if image_shape:
+        image = resize(image, image_shape, preserve_range=preserve_range)
+    image = np.expand_dims(image, 0)
+
+    return image
+
 def image_dataset(filedir, image_size, batch_size, norm=True):
     def preprocess_image(image):
         image = tf.image.decode_jpeg(image, channels=3)

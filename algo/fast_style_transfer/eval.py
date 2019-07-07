@@ -1,7 +1,9 @@
+from math import ceil
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import argparse
 from pathlib import Path
+from skimage.data import imread
 import tensorflow as tf
 
 from model import StyleTransferModel
@@ -24,10 +26,15 @@ def main():
     cmd_args = parse_cmd_args()
 
     args['eval_image_path'] = cmd_args.image
+    image = imread(cmd_args.image)
+    h, w, c = image.shape
+    h = ceil(h / 4) * 4
+    w = ceil(w / 4) * 4
+    args['image_shape'] = (h, w, c)
 
-    model = StyleTransferModel('model', args, log_tensorboard=False, device='/gpu:0')
+    model = StyleTransferModel('model', args, log_tensorboard=False, save=True, device='/gpu:0')
     model.restore(cmd_args.checkpoint)
-    model.eval()
+    model.eval(eval_image=True)
 
 if __name__ == '__main__':
     main()

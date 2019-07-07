@@ -207,7 +207,6 @@ class Model(Module):
         if save:
             self.saver = self._setup_saver(save)
             self.model_file = self._setup_model_path(args['model_root_dir'], self.model_name)
-            self.restore(self.model_file)
     
     @property
     def global_variables(self):
@@ -228,8 +227,10 @@ class Model(Module):
         try:
             if os.path.isdir(model_file):
                 ckpt = tf.train.get_checkpoint_state(model_file)
+                pwc(f'dir: {ckpt.model_checkpoint_path}')
                 self.saver.restore(self.sess, ckpt.model_checkpoint_path)
             else:
+                pwc(f'file: {model_file}')
                 self.saver.restore(self.sess, model_file)
         except:
             pwc(f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!',

@@ -57,7 +57,6 @@ class StyleTransfer(Module):
 
             filters, kernel_size, strides = self.args['final_conv_params']
             x = self.conv_norm_activation(x, filters, kernel_size, strides, norm=norm, activation=tf.tanh, name='FinalConv')
-
             x = 127.5 * x + 127.5
             
         return x
