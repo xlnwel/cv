@@ -5,16 +5,16 @@ Although this algorithm is traiend with (256, 256, 3) images, it generalizes ext
 ## Examples
 
 <p align = 'center'>
-<img src = 'algo/fast_style_transfer/style/udnie.jpg' height = '246px'>
-<img src = 'algo/fast_style_transfer/content/stata.jpg' height = '246px'>
-<a href = 'algo/fast_style_transfer/results/stata-udnie.jpg'><img src = 'algo/fast_style_transfer/results/stata-udnie.jpg' width = '627px'></a>
+<img src = 'data/style/udnie.jpg' height = '246px'>
+<img src = 'data/content/stata.jpg' height = '246px'>
+<a href = 'data/results/stata-udnie.jpg'><img src = 'data/results/stata-udnie.jpg' width = '627px'></a>
 </p>
 <p align = 'center'>
 
 <p align = 'center'>
-<img src = 'algo/fast_style_transfer/style/udnie.jpg' height = '246px'>
-<img src = 'algo/fast_style_transfer/content/chicago.jpg' height = '246px'>
-<a href = 'algo/fast_style_transfer/results/chicago-udnie.jpg'><img src = 'algo/fast_style_transfer/results/chicago-udnie.jpg' width = '627px'></a>
+<img src = 'data/style/udnie.jpg' height = '246px'>
+<img src = 'data/content/chicago.jpg' height = '246px'>
+<a href = 'data/results/chicago-udnie.jpg'><img src = 'data/results/chicago-udnie.jpg' width = '627px'></a>
 </p>
 <p align = 'center'>
 
