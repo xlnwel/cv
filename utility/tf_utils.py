@@ -139,3 +139,27 @@ def wrap_layer(name, layer_imp):
         x = layer_imp()
 
     return x
+
+def spectral_norm(w, iteration=1):
+    w_shape = w.shape
+    w = tf.reshape(w, [-1, w_shape[-1]])    # [N, M]
+
+    # [1, M]
+    u_var = tf.get_variable('u', [1, w_shape[-1]], initializer=tf.truncated_normal_initializer(), trainable=False)
+    u = u_var
+
+    for _ in range(iteration):
+        # power iteration
+        v = tf.matmul(u, w, transpose_b=True)   # [1, N]
+        v = tf.nn.l2_normalize(v)
+
+        u = tf.matmul(v, w)                     # [1, M]
+        u = tf.nn.l2_normalize(u)
+
+    sigma = tf.matmul(tf.matmul(v, w), u, transpose_b=True)
+    w = w / sigma
+
+    with tf.control_dependencies([u_var.assign(u)]):
+        w = tf.reshape(w, w_shape)
+
+    return w

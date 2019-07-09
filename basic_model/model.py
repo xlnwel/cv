@@ -150,7 +150,7 @@ class Model(Module):
                  name, 
                  args,
                  sess_config=None, 
-                 save=True,
+                 save=False, 
                  log_tensorboard=False,
                  log_params=False,
                  log_stats=False,
@@ -203,9 +203,9 @@ class Model(Module):
             self.writer = self._setup_writer(args['log_root_dir'], self.model_name)
             
         self.sess.run(tf.variables_initializer(self.global_variables))
-            
+
         if save:
-            self.saver = self._setup_saver(save)
+            self.saver = self._setup_saver()
             self.model_file = self._setup_model_path(args['model_root_dir'], self.model_name)
     
     @property
@@ -220,16 +220,15 @@ class Model(Module):
         """
         To restore a specific version of model, set filename to the model stored in saved_models
         """
-        if not model_file:
-            pwc('No model file is specified. Restore failed and ignored implicitly.', 'magenta')
-            pass
-        model_file = model_file
+        self.model_file = model_file
+        if not hasattr(self, 'saver'):
+            self.saver = self._setup_saver()
         try:
-            if os.path.isdir(model_file):
-                ckpt = tf.train.get_checkpoint_state(model_file)
+            if os.path.isdir(self.model_file):
+                ckpt = tf.train.get_checkpoint_state(self.model_file)
                 self.saver.restore(self.sess, ckpt.model_checkpoint_path)
             else:
-                self.saver.restore(self.sess, model_file)
+                self.saver.restore(self.sess, self.model_file)
         except:
             pwc(f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!',
                 'magenta')
@@ -254,8 +253,8 @@ class Model(Module):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
 
     """ Implementation """
-    def _setup_saver(self, save):
-        return tf.train.Saver(self.global_variables) if save else None
+    def _setup_saver(self):
+        return tf.train.Saver(self.global_variables)
 
     def _setup_model_path(self, root_dir, model_name):
         model_dir = Path(root_dir) / model_name

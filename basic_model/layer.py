@@ -35,12 +35,24 @@ class Layer():
 
     """ Layers
     The main reason why we define layers as member functions is 
-    that we want to  automatically handle l2 regularization.
+    that we want to automatically handle l2 regularization.
     """
     def dense(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), name=None):
         return tf.layers.dense(x, units, kernel_initializer=kernel_initializer, 
                                kernel_regularizer=self.l2_regularizer, 
                                name=name)
+
+    def sndense(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), name=None):
+        name = self.get_name(name, 'sndense')
+
+        with tf.variable_scope(name):
+            w = tf.get_variable('weight', shape=[x.shape[-1], units], 
+                                initializer=kernel_initializer, 
+                                regularizer=self.l2_regularizer)
+            b = tf.get_variable('bias', [units], initializer=tf.constant_initializer(0))
+            x = tf.matmul(x, w) + b
+
+        return x
 
     def dense_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
                                norm=tc.layers.layer_norm, activation=tf.nn.relu, name=None):
@@ -96,7 +108,7 @@ class Layer():
 
     def conv(self, x, filters, kernel_size, strides=1, padding='same', 
               kernel_initializer=tf_utils.xavier_initializer(), name=None): 
-        if padding != 'same' and padding != 'valid':
+        if padding.lower() != 'same' and padding.lower() != 'valid':
             x = tf_utils.padding(x, kernel_size // 2, kernel_size // 2, mode=padding)
             padding = 'valid'
 
@@ -105,6 +117,31 @@ class Layer():
                                 kernel_initializer=kernel_initializer, 
                                 kernel_regularizer=self.l2_regularizer, 
                                 name=name)
+
+    def snconv(self, x, filters, kernel_size, strides=1, padding='same', 
+              kernel_initializer=tf_utils.xavier_initializer(), name=None):
+        name = self.get_name(name, 'snconv')
+
+        with tf.variable_scope(name):
+            if padding.lower() != 'same' and padding.lower() != 'valid':
+                x = tf_utils.padding(x, kernel_size // 2, kernel_size // 2, mode=padding)
+                padding = 'valid'
+            if isinstance(kernel_size, list):
+                assert_colorize(len(kernel_size) == 2)
+                h, w = kernel_size
+            else:
+                assert_colorize(isinstance(kernel_size, int))
+                h = w = kernel_size
+
+            w = tf.get_variable('weight', shape=[h, w, x.shape[-1], filters], 
+                                initializer=kernel_initializer, 
+                                regularizer=self.l2_regularizer)
+            x = tf.nn.conv2d(input=x, filter=tf_utils.spectral_norm(w), strides=(1, strides, strides, 1), padding=padding)
+
+            b = tf.get_variable('bias', [filters], initializer=tf.constant_initializer(0))
+            x = tf.nn.bias_add(x, b)
+
+        return x
 
     def conv_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
                               kernel_initializer=tf_utils.kaiming_initializer(), 
@@ -169,7 +206,7 @@ class Layer():
 
         return x
 
-    def convtrans(self, x, filters, kernel_size, strides=1, padding='same', 
+    def convtrans(self, x, filters, kernel_size, strides, padding='same', 
                    kernel_initializer=tf_utils.xavier_initializer(), name=None): 
         return tf.layers.conv2d_transpose(x, filters, kernel_size, 
                                           strides=strides, padding=padding, 
@@ -177,7 +214,37 @@ class Layer():
                                           kernel_regularizer=self.l2_regularizer, 
                                           name=name)
 
-    def convtrans_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
+    def snconvtrans(self, x, filters, kernel_size, strides, padding='same', 
+              kernel_initializer=tf_utils.xavier_initializer(), name=None):
+        name = self.get_name(name, 'snconvtrans')
+
+        with tf.variable_scope(name):
+            if isinstance(kernel_size, list):
+                assert_colorize(len(kernel_size) == 2)
+                h, w = kernel_size
+            else:
+                assert_colorize(isinstance(kernel_size, int))
+                h = w = kernel_size
+
+            B, H, W, _ = x.shape
+            if padding.lower() == 'same':
+                output_shape = [B, H * strides, W * strides, filters]
+            else:
+                output_shape = [B, (H-1) * strides + h, (W-1) * strides + w, filters]
+            w = tf.get_variable('weight', shape=[h, w, x.shape[-1], filters], 
+                                initializer=kernel_initializer, 
+                                regularizer=self.l2_regularizer)
+            x = tf.nn.conv2d_transpose(input=x, filter=tf_utils.spectral_norm(w), 
+                                        output_shape=output_shape, 
+                                        strides=(1, strides, strides, 1), 
+                                        padding=padding)
+
+            b = tf.get_variable('bias', [filters], initializer=tf.constant_initializer(0))
+            x = tf.nn.bias_add(x, b)
+
+        return x
+
+    def convtrans_norm_activation(self, x, filters, kernel_size, strides, padding='same', 
                                    kernel_initializer=tf_utils.kaiming_initializer(), 
                                    norm=tf.layers.batch_normalization, 
                                    activation=tf.nn.relu, name=None):

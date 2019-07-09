@@ -9,9 +9,15 @@ from run.grid_search import GridSearch
 
 
 def main(args):
+    # you may need this code to train multiple instances
     # sess_config = tf.ConfigProto(allow_soft_placement=True)
     # sess_config.gpu_options.allow_growth=True
     # sess_config.gpu_options.per_process_gpu_memory_fraction = 0.45
+
+    style_image_path, _ = os.path.splitext(args['style_image_path'])
+    _, style_image = os.path.split(style_image_path)
+
+    args['model_name'] = style_image
 
     model = StyleTransferModel('model', args, log_tensorboard=True, save=True, device='/gpu:0')
     model.train()
@@ -22,5 +28,5 @@ if __name__ == '__main__':
 
     gs = GridSearch(args_file, main)
 
-    gs(style_weights=[100], content_weight=[2], tv_weight=[200])
+    gs()
     # gs(style_transfer=dict(padding=['same', 'reflect']))

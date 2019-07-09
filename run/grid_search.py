@@ -18,10 +18,10 @@ class GridSearch:
         # add date to root directory
         now = datetime.now()
         if dir_prefix:
-            dir_prefix = f'{dir_prefix}'
+            dir_prefix = f'-{dir_prefix}'
         dir_fn = lambda filename: (f'logs/'
                                     f'{now.month:02d}{now.day:02d}-'
-                                    f'{now.hour:02d}{now.minute:02d}-'
+                                    f'{now.hour:02d}{now.minute:02d}'
                                     f'{dir_prefix}/'
                                     f'{filename}')
         dirs = ['model_root_dir', 'log_root_dir']

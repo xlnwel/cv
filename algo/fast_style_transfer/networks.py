@@ -45,7 +45,8 @@ class StyleTransfer(Module):
         # ConvNet
         with tf.variable_scope('net', reuse=self.reuse):
             for i, (filters, kernel_size, strides) in enumerate(self.args['conv_params']):
-                x = self.conv_norm_activation(x, filters, kernel_size, strides, padding=self.padding, norm=norm, name=f'Conv_{i}')
+                x = self.conv_norm_activation(x, filters, kernel_size, strides, 
+                                              padding=self.padding, norm=norm, name=f'Conv_{i}')
 
             # ResNet, following paper "Identity Mappings in Deep Residual Networks"
             for i in range(self.args['n_residuals']):
@@ -56,19 +57,10 @@ class StyleTransfer(Module):
                 x = self.convtrans_norm_activation(x, filters, kernel_size, strides, norm=norm, name=f'ConvTrans_{i}')
 
             filters, kernel_size, strides = self.args['final_conv_params']
-            x = self.conv_norm_activation(x, filters, kernel_size, strides, norm=norm, activation=tf.tanh, name='FinalConv')
+            x = self.conv_norm_activation(x, filters, kernel_size, strides, padding=self.padding, 
+                                          norm=norm, activation=tf.tanh, name='FinalConv')
             x = 127.5 * x + 127.5
             
-        return x
-
-    def conv_resnet(self, x, filters, kernel_size, strides=1, padding='same', norm=None, name=None):
-        y = x
-        with tf.variable_scope(name):
-            y = self.conv_norm_activation(y, filters, kernel_size, strides, padding=padding, norm=norm, name='ConvNormAct1')
-            y = self.conv_norm_activation(y, filters, kernel_size, strides, padding=padding, norm=norm, activation=None, name='ConvNormAct2')
-
-            x += y
-
         return x
 
 # code originally from https://github.com/lengstrom/fast-style-transfer/blob/master/src/vgg.py

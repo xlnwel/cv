@@ -32,9 +32,9 @@ def main():
     w = ceil(w / 4) * 4
     args['image_shape'] = (h, w, c)
 
-    model = StyleTransferModel('model', args, log_tensorboard=False, save=True, device='/gpu:0')
+    model = StyleTransferModel('model', args, device='/gpu:0')
     model.restore(cmd_args.checkpoint)
-    model.eval(eval_image=True)
+    model.evaluate(eval_image=True)
 
 if __name__ == '__main__':
     main()

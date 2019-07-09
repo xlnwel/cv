@@ -54,22 +54,25 @@ class StyleTransferModel(Model):
                          log_stats=log_stats, 
                          device=device)
 
-    def eval(self, eval_image=False, t=None):
+    def evaluate(self, eval_image=False, train_time=None):
         if self.log_tensorboard:
-            if t is None:
+            if train_time is None:
                 raise ValueError
             summary = self.sess.run(self.graph_summary, feed_dict={self.image: self.data_generator.sample()})
-            self.writer.add_summary(summary, t)
+            self.writer.add_summary(summary, train_time)
         if eval_image:
-            st_image = self.sess.run(self.st_image, feed_dict={self.image: self.eval_image})
+            t, st_image = timeit(lambda: self.sess.run(self.st_image, feed_dict={self.image: self.eval_image}))
+            pwc(f'Time taking to transfer an image: {t:.2f}s', color='green')
             st_image = np.squeeze(st_image)
+            # get image path
             image_filename, _ = osp.splitext(self.eval_image_path)
             _, image_filename = osp.split(image_filename)
             _, style_filename = osp.split(self.args['style_image_path'])
             results_dir = self.args['results_dir']
             if not osp.exists(results_dir):
                 os.mkdir(results_dir)
-            imsave(f'data/results/{image_filename}-{style_filename}', st_image)
+
+            imsave(f'data/results/{image_filename}-{style_filename}', st_image, format='jpg')
 
     def train(self):
         start = time()
@@ -78,12 +81,13 @@ class StyleTransferModel(Model):
             t, _ = timeit(lambda: self.sess.run([self.opt_op]))
             times.append(t)
             if i % 100 == 0:
-                self.eval('data/content/stata.jpg', i)
+                self.evaluate('data/content/stata.jpg', train_time=i)
                 self.save()
 
             pwc(f'Iterator {i}:\t\t{(time() - start) / 60:.3f} minutes\n'
                 f'Average {np.mean(times):.3F} seconds per pass', color='green')
         
+    """ Implementation """
     def _build_graph(self):
         with tf.device('/CPU: 0'):
             self.image = self._prepare_data()
