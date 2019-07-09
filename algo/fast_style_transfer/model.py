@@ -81,7 +81,7 @@ class StyleTransferModel(Model):
             t, _ = timeit(lambda: self.sess.run([self.opt_op]))
             times.append(t)
             if i % 100 == 0:
-                self.evaluate('data/content/stata.jpg', train_time=i)
+                self.evaluate(train_time=i)
                 self.save()
 
             pwc(f'Iterator {i}:\t\t{(time() - start) / 60:.3f} minutes\n'
