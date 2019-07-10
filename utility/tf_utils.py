@@ -163,3 +163,18 @@ def spectral_norm(w, iteration=1):
         w = tf.reshape(w, w_shape)
 
     return w
+
+def positional_encoding(indices, max_idx, dim, name='positional_encoding'):
+    with tf.name_scope(name):
+        # exp(-2i / d_model * log(10000))
+        vals = np.array([pos * np.exp(- np.arange(0, dim, 2) / dim * np.log(10000)) for pos in range(max_idx)])
+        
+        params = np.zeros((max_idx, dim))
+        params[:, 0::2] = np.sin(vals)    # 2i
+        params[:, 1::2] = np.cos(vals)    # 2i + 1
+        params = tf.convert_to_tensor(params, tf.float32)
+
+        v = tf.nn.embedding_lookup(params, indices)
+
+    return v
+

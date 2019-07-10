@@ -143,6 +143,9 @@ class Module(Layer):
 
         return opt_op
 
+    def _get_variable_scope(self, scope_prefix, name):
+        return f'{scope_prefix}/{name}'
+
 
 class Model(Module):
     """ Interface """
@@ -235,9 +238,10 @@ class Model(Module):
         else:
             pwc(f"Model {self.model_name}: Params for {self.name} are restored.", 'magenta')
 
-    def save(self):
+    def save(self, print_terminal_info=True):
         if hasattr(self, 'saver'):
-            pwc('Model saved', 'magenta')
+            if print_terminal_info:
+                pwc('Model saved', 'magenta')
             return self.saver.save(self.sess, self.model_file)
         else:
             # no intention to treat no saver as an error, just print a warning message
@@ -328,3 +332,6 @@ class Model(Module):
                                             feed_dict=feed_dict)
 
         self.writer.add_summary(summary, score_count)
+
+    def _time_to_save(self, train_steps):
+        return train_steps % 100 == 0

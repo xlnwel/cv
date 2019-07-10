@@ -1,0 +1,4 @@
+generator:
+    spectral_norm: True
+    z_dim: 100
+    gen_params: [[1024, ]]

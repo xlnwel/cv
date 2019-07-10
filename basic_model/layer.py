@@ -392,6 +392,15 @@ class Layer():
 
         return x, (initial_state, final_state)
 
+    def gru(self, x, units, return_sequences=False):
+        assert_colorize(len(x.shape.as_list()) == 3, f'Imput Shape Error: desire shape of dimension 3, get {len(x.shape.as_list())}')
+        gru_cell = tk.layers.CuDNNGRU(units, return_sequences=return_sequences, return_state=True)
+    
+        initial_state = gru_cell.get_initial_state(x)
+        x, final_state = gru_cell(x, initial_state=initial_state)
+
+        return x, (initial_state, final_state)
+
     def lstm_norm(self, x, units, masks, norm=True):
         kernel_initializer = tf_utils.kaiming_initializer() if norm else tf_utils.xavier_initializer()
         xw_shape = [x.shape.as_list()[-1], units]
@@ -436,6 +445,75 @@ class Layer():
             xs = tf.stack(xs, 1)
 
         return xs, (initial_state, final_state)
+
+    def attention(self, q, k, v, mask=None):
+        assert_colorize(len(q.shape.as_list()) == 3, f'Error shape of q: {q}')
+        assert_colorize(len(k.shape.as_list()) == 3, f'Error shape of k: {k}')
+        assert_colorize(len(v.shape.as_list()) == 3, f'Error shape of v: {k}')
+
+        dot_product = tf.matmul(q, k, transpose_b=True)
+        if mask:
+            dot_product *= mask
+        weights = tf.nn.softmax(dot_product)
+        x = tf.matmul(weights, v)
+        
+        return x
+
+    def multihead_attention(self, x, key_size, val_size, num_heads, mask=None, name=None):
+        name = self.get_name(name, 'multihead_attention')
+        with tf.variable_scope(name):
+            # Perform linear tranformation to compute all Q, K, V
+            qkv_size = 2 * key_size + val_size
+            total_size = qkv_size * num_heads  # Denote as F.
+            qkv = tf.layers.dense(x, total_size)
+            qkv = tc.layers.layer_norm(qkv)		 # tc=tf.contrib
+
+            seq_len = x.get_shape().as_list()[1]  # Denoted as N.
+
+            # [B, N, F] -> [B, N, H, F/H]
+            qkv_reshape = tf.reshape(qkv, [-1, seq_len, num_heads, qkv_size])
+
+            # [B, N, H, F/H] -> [B, H, N, F/H]
+            qkv_transpose = tf.transpose(qkv_reshape, [0, 2, 1, 3])
+            q, k, v = tf.split(qkv_transpose, [key_size, key_size, val_size], -1)
+
+            # softmax(QK^T/(d**2))V
+            q *= key_size ** -0.5
+            dot_product = tf.matmul(q, k, transpose_b=True)  # [B, H, N, N]
+            if mask:
+                dot_product *= mask
+            weights = tf.nn.softmax(dot_product)
+            output = tf.matmul(weights, v)  # [B, H, N, V]
+
+            # [B, H, N, V] -> [B, N, H, V]
+            output_transpose = tf.transpose(output, [0, 2, 1, 3])
+
+            # [B, N, H, V] -> [B, N, H * V]
+            x = tf.reshape(output_transpose, [-1, seq_len, num_heads * qkv_size])
+
+        return x
+
+    def conv_attention(self, x, key_size, sn, name=None):
+        """ attention based on SA-GAN """
+        h, w, c = x.shape[1:]
+        conv = self.snconv if sn else self.conv
+        name = self.get_name(name, 'conv_attenion')
+        with tf.variable_scope(name):
+            f = conv(x, key_size, 1, 1)
+            g = conv(x, key_size, 1, 1)
+            h = conv(x, c, 1, 1)
+
+            f = tf.reshape(f, [-1, h * w, c])
+            g = tf.reshape(g, [-1, h * w, c])
+            h = tf.reshape(h, [-1, h * w, c])
+
+            o = self.attention(f, g, h)
+            gamma = tf.get_variable('gamma', [1], initializer=tf.constant_initializer(0))
+
+            o = tf.reshape(o, x.shape)
+            o = gamma * o + x
+
+        return x
 
     """ Auxiliary functions """
     def reset_counter(self, name):

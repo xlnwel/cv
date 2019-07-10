@@ -80,12 +80,14 @@ class StyleTransferModel(Model):
         for i in range(self.args['n_iterations']):
             t, _ = timeit(lambda: self.sess.run([self.opt_op]))
             times.append(t)
-            if i % 100 == 0:
+            if self._time_to_save(i):
                 self.evaluate(train_time=i)
+                print()
                 self.save()
 
-            pwc(f'Iterator {i}:\t\t{(time() - start) / 60:.3f} minutes\n'
-                f'Average {np.mean(times):.3F} seconds per pass', color='green')
+            print(f'\rTime: {(time() - start) / 60:.2f}m; Iterator {i};\t\
+                    Average {np.mean(times):.3F} seconds per pass',
+                  end='')
         
     """ Implementation """
     def _build_graph(self):
