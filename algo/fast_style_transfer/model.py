@@ -72,22 +72,20 @@ class StyleTransferModel(Model):
             if not osp.exists(results_dir):
                 os.mkdir(results_dir)
 
-            imsave(f'data/results/{image_filename}-{style_filename}', st_image, format='jpg')
+            imsave(f'{results_dir}/{image_filename}-{style_filename}', st_image, format='jpg')
 
     def train(self):
         start = time()
         times = deque(maxlen=100)
-        for i in range(self.args['n_iterations']):
+        for i in range(1, self.args['n_iterations'] + 1):
             t, _ = timeit(lambda: self.sess.run([self.opt_op]))
             times.append(t)
+            print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
+                    Average {np.mean(times):.3F} seconds per pass',
             if self._time_to_save(i):
                 self.evaluate(train_time=i)
                 print()
                 self.save()
-
-            print(f'\rTime: {(time() - start) / 60:.2f}m; Iterator {i};\t\
-                    Average {np.mean(times):.3F} seconds per pass',
-                  end='')
         
     """ Implementation """
     def _build_graph(self):

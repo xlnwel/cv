@@ -26,6 +26,8 @@ python eval.py -i=path_to_image -c=path_to_checkpoint
 </p>
 <p align = 'center'>
 
+For more example, see `data/results`.
+
 ## Reference Papers
 
 <a name='ref1'></a>Justin Johnson et al. Perceptual Losses for Real-Time Style Transfer and Super-Resolution

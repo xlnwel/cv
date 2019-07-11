@@ -8,12 +8,10 @@ from utility.debug_tools import assert_colorize
 
 
 class GridSearch:
-    def __init__(self, args_file, train_func, render=False, n_trials=1, dir_prefix=''):
+    def __init__(self, args_file, train_func, dir_prefix=''):
         args = load_args(args_file)
         self.args = args
         self.train_func = train_func
-        self.render = render
-        self.n_trials = n_trials
 
         # add date to root directory
         now = datetime.now()
@@ -31,7 +29,7 @@ class GridSearch:
         self.processes = []
 
     def __call__(self, **kwargs):
-        if kwargs == {} and self.n_trials == 1:
+        if kwargs == {}:
             # if no argument is passed in, run the default setting
             self.train_func(self.args)        
         else:
@@ -44,17 +42,14 @@ class GridSearch:
         if kwargs == {}:
             # basic case
             old_model_name = self.args['model_name']
-            for i in range(1, self.n_trials+1):
-                if self.n_trials > 1:
-                    self.args['model_name'] += f'/trial{i}'
-                # arguments should be deep copied here, 
-                # otherwise args will be reset if sub-process runs after
-                p = Process(target=self.train_func,
-                            args=(deepcopy(self.args), ))
-                self.args['model_name'] = old_model_name
-                p.start()
-                time.sleep(1)   # ensure sub-processs start in order
-                self.processes.append(p)
+            # arguments should be deep copied here, 
+            # otherwise args will be reset if sub-process runs after
+            p = Process(target=self.train_func,
+                        args=(deepcopy(self.args), ))
+            self.args['model_name'] = old_model_name
+            p.start()
+            time.sleep(1)   # ensure sub-processs start in order
+            self.processes.append(p)
         else:
             # recursive case
             kwargs_copy = deepcopy(kwargs)

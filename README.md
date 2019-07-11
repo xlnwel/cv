@@ -2,6 +2,8 @@
 
 For details of each algorithm, please refer to `algo\*`.
 
+Datasets are by default located at `dataset/*` 
+
 ## Algorithm Implemented
 
 - [x] Fast style transfer

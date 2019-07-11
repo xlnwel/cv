@@ -49,7 +49,8 @@ class Layer():
             w = tf.get_variable('weight', shape=[x.shape[-1], units], 
                                 initializer=kernel_initializer, 
                                 regularizer=self.l2_regularizer)
-            b = tf.get_variable('bias', [units], initializer=tf.constant_initializer(0))
+            w = tf_utils.spectral_norm(w)
+            b = tf.get_variable('bias', [units], initializer=tf.zeros_initializer())
             x = tf.matmul(x, w) + b
 
         return x
@@ -121,24 +122,25 @@ class Layer():
     def snconv(self, x, filters, kernel_size, strides=1, padding='same', 
               kernel_initializer=tf_utils.xavier_initializer(), name=None):
         name = self.get_name(name, 'snconv')
+        if isinstance(kernel_size, list):
+            assert_colorize(len(kernel_size) == 2)
+            H, W = kernel_size
+        else:
+            assert_colorize(isinstance(kernel_size, int))
+            H = W = kernel_size
 
         with tf.variable_scope(name):
             if padding.lower() != 'same' and padding.lower() != 'valid':
                 x = tf_utils.padding(x, kernel_size // 2, kernel_size // 2, mode=padding)
                 padding = 'valid'
-            if isinstance(kernel_size, list):
-                assert_colorize(len(kernel_size) == 2)
-                h, w = kernel_size
-            else:
-                assert_colorize(isinstance(kernel_size, int))
-                h = w = kernel_size
 
-            w = tf.get_variable('weight', shape=[h, w, x.shape[-1], filters], 
+            w = tf.get_variable('weight', shape=[H, W, x.shape[-1], filters], 
                                 initializer=kernel_initializer, 
                                 regularizer=self.l2_regularizer)
-            x = tf.nn.conv2d(input=x, filter=tf_utils.spectral_norm(w), strides=(1, strides, strides, 1), padding=padding)
+            w = tf_utils.spectral_norm(w)
+            x = tf.nn.conv2d(x, w, strides=(1, strides, strides, 1), padding=padding.upper())
 
-            b = tf.get_variable('bias', [filters], initializer=tf.constant_initializer(0))
+            b = tf.get_variable('bias', [filters], initializer=tf.zeros_initializer())
             x = tf.nn.bias_add(x, b)
 
         return x
@@ -217,29 +219,31 @@ class Layer():
     def snconvtrans(self, x, filters, kernel_size, strides, padding='same', 
               kernel_initializer=tf_utils.xavier_initializer(), name=None):
         name = self.get_name(name, 'snconvtrans')
+        if isinstance(kernel_size, list):
+            assert_colorize(len(kernel_size) == 2)
+            k_h, k_w = kernel_size
+        else:
+            assert_colorize(isinstance(kernel_size, int))
+            k_h = k_w = kernel_size
+        B, H, W, _ = x.shape.as_list()
 
+        # Compute output shape
+        if padding.lower() == 'valid':
+            output_shape = [B, (H-1) * strides + k_h, (W-1) * strides + k_w, filters]
+        else:
+            output_shape = [B, H * strides, W * strides, filters]
+        
         with tf.variable_scope(name):
-            if isinstance(kernel_size, list):
-                assert_colorize(len(kernel_size) == 2)
-                h, w = kernel_size
-            else:
-                assert_colorize(isinstance(kernel_size, int))
-                h = w = kernel_size
-
-            B, H, W, _ = x.shape
-            if padding.lower() == 'same':
-                output_shape = [B, H * strides, W * strides, filters]
-            else:
-                output_shape = [B, (H-1) * strides + h, (W-1) * strides + w, filters]
-            w = tf.get_variable('weight', shape=[h, w, x.shape[-1], filters], 
+            w = tf.get_variable('weight', shape=[k_h, k_w, filters, x.shape[-1]], 
                                 initializer=kernel_initializer, 
                                 regularizer=self.l2_regularizer)
-            x = tf.nn.conv2d_transpose(input=x, filter=tf_utils.spectral_norm(w), 
+            w = tf_utils.spectral_norm(w)
+            x = tf.nn.conv2d_transpose(x, w, 
                                         output_shape=output_shape, 
-                                        strides=(1, strides, strides, 1), 
-                                        padding=padding)
+                                        strides=[1, strides, strides, 1], 
+                                        padding=padding.upper())
 
-            b = tf.get_variable('bias', [filters], initializer=tf.constant_initializer(0))
+            b = tf.get_variable('bias', [filters], initializer=tf.zeros_initializer())
             x = tf.nn.bias_add(x, b)
 
         return x
@@ -417,13 +421,13 @@ class Layer():
                                   initializer=kernel_initializer,
                                   regularizer=self.l2_regularizer)
             x_b = tf.get_variable('x_b', shape=xb_shape, 
-                                  initializer=tf.constant_initializer(0))
+                                  initializer=tf.zeros_initializer())
             
             h_w = tf.get_variable('h_w', shape=hw_shape, 
                                   initializer=kernel_initializer,
                                   regularizer=self.l2_regularizer)
             h_b = tf.get_variable('h_b', shape=hb_shape, 
-                                  initializer=tf.constant_initializer(0))
+                                  initializer=tf.zeros_initializer())
 
             initial_state = tf.zeros([n_batch, 2*units], name='initial_state')
             c, c = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
@@ -493,25 +497,27 @@ class Layer():
 
         return x
 
-    def conv_attention(self, x, key_size, sn, name=None):
+    def conv_attention(self, x, key_size=None, sn=True, name=None):
         """ attention based on SA-GAN """
-        h, w, c = x.shape[1:]
+        H, W, C = x.shape.as_list()[1:]
+        if key_size is None:
+            key_size = C // 8
         conv = self.snconv if sn else self.conv
         name = self.get_name(name, 'conv_attenion')
         with tf.variable_scope(name):
             f = conv(x, key_size, 1, 1)
             g = conv(x, key_size, 1, 1)
-            h = conv(x, c, 1, 1)
+            h = conv(x, C, 1, 1)
 
-            f = tf.reshape(f, [-1, h * w, c])
-            g = tf.reshape(g, [-1, h * w, c])
-            h = tf.reshape(h, [-1, h * w, c])
+            f = tf.reshape(f, [-1, H * W, key_size])
+            g = tf.reshape(g, [-1, H * W, key_size])
+            h = tf.reshape(h, [-1, H * W, C])
 
             o = self.attention(f, g, h)
-            gamma = tf.get_variable('gamma', [1], initializer=tf.constant_initializer(0))
+            gamma = tf.get_variable('gamma', [1], initializer=tf.zeros_initializer())
 
-            o = tf.reshape(o, x.shape)
-            o = gamma * o + x
+            o = tf.reshape(o, [-1, H, W, C])
+            x = gamma * o + x
 
         return x
 

@@ -19,7 +19,7 @@ def norm_image(image):
     # normalize to [0,1] range
     return image / 255.0
 
-def image_dataset(filedir, image_size, batch_size, norm=True):
+def image_dataset(ds_dir, image_size, batch_size, norm=True):
     def preprocess_image(image):
         image = tf.image.decode_jpeg(image, channels=3)
         image = tf.image.resize(image, image_size)
@@ -31,7 +31,9 @@ def image_dataset(filedir, image_size, batch_size, norm=True):
         image = tf.read_file(path)
         return preprocess_image(image)
 
-    all_image_paths = [str(f) for f in Path(filedir).glob('*')]
+    ds_dir = Path(ds_dir)
+    assert_colorize(ds_dir.is_dir(), f'Not a valid directory {ds_dir}')
+    all_image_paths = [str(f) for f in Path(ds_dir).glob('*')]
     ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
     ds = ds.shuffle(buffer_size = len(all_image_paths))
     ds = ds.map(load_and_preprocess_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -42,8 +44,8 @@ def image_dataset(filedir, image_size, batch_size, norm=True):
     return ds
 
 class ImageGenerator:
-    def __init__(self, filedir, image_shape, batch_size, preserve_range=True):
-        self.all_image_paths = [str(f) for f in Path(filedir).glob('*')]
+    def __init__(self, ds_dir, image_shape, batch_size, preserve_range=True):
+        self.all_image_paths = [str(f) for f in Path(ds_dir).glob('*')]
         self.total_images = len(self.all_image_paths)
         self.image_shape = image_shape
         self.batch_size = batch_size
