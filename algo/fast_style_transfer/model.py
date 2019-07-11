@@ -82,6 +82,7 @@ class StyleTransferModel(Model):
             times.append(t)
             print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
                     Average {np.mean(times):.3F} seconds per pass',
+                  end='')
             if self._time_to_save(i):
                 self.evaluate(train_time=i)
                 print()
