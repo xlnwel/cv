@@ -96,7 +96,6 @@ class SAGAN(Model):
 
     def _prepare_data(self):
         with tf.name_scope('image'):
-            # Do not normalize image here, do it in StyleTransfer
             ds = image_dataset(self.train_dir, self.image_shape[:-1], self.batch_size, False)
             image = ds.make_one_shot_iterator().get_next('images')
 
@@ -128,3 +127,8 @@ class SAGAN(Model):
                 tf.summary.image('image_', self.normed_image, max_outputs=1)
                 tf.summary.histogram('image_hist_', self.normed_image)
         
+            with tf.name_scope('prob'):
+                tf.summary.histogram('real_prob_his_', self.real_discriminator.prob)
+                tf.summary.histogram('fake_prob_hist_', self.fake_discriminator.prob)
+                tf.summary.scalar('real_prob_', tf.reduce_mean(self.real_discriminator.prob))
+                tf.summary.scalar('fake_prob_', tf.reduce_mean(self.fake_discriminator.prob))

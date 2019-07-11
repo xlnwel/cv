@@ -19,14 +19,14 @@ def parse_cmd_args():
     return args
 
 def main(args):
-    # you may need this code to train multiple instances
+    # you may need this code to train multiple instances on a single GPU
     # sess_config = tf.ConfigProto(allow_soft_placement=True)
     # sess_config.gpu_options.allow_growth=True
     # sess_config.gpu_options.per_process_gpu_memory_fraction = 0.45
     # remember to pass sess_config to Model
 
     model = SAGAN('model', args, log_tensorboard=True, save=True, device='/gpu:0')
-    # model.restore('logs/0711-0741/saved_models/baseline')
+
     model.train()
 
 if __name__ == '__main__':
@@ -37,4 +37,4 @@ if __name__ == '__main__':
 
     gs = GridSearch(args_file, main, dir_prefix=cmd_args.prefix)
 
-    gs()
+    gs(generator=dict(spectral_norm=[True]))

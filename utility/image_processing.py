@@ -34,6 +34,7 @@ def image_dataset(ds_dir, image_size, batch_size, norm=True):
     ds_dir = Path(ds_dir)
     assert_colorize(ds_dir.is_dir(), f'Not a valid directory {ds_dir}')
     all_image_paths = [str(f) for f in Path(ds_dir).glob('*')]
+    pwc(f'Total Images: {len(all_image_paths)}', 'magenta')
     ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
     ds = ds.shuffle(buffer_size = len(all_image_paths))
     ds = ds.map(load_and_preprocess_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -46,6 +47,7 @@ def image_dataset(ds_dir, image_size, batch_size, norm=True):
 class ImageGenerator:
     def __init__(self, ds_dir, image_shape, batch_size, preserve_range=True):
         self.all_image_paths = [str(f) for f in Path(ds_dir).glob('*')]
+        pwc(f'Total Images: {len(self.all_image_paths)}', 'magenta')
         self.total_images = len(self.all_image_paths)
         self.image_shape = image_shape
         self.batch_size = batch_size

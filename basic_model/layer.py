@@ -68,45 +68,6 @@ class Layer():
 
         return x
 
-    def dense_resnet(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(), 
-                      norm=tc.layers.layer_norm, name=None):
-        """
-        kernel_initializer specifies the initialization of the last layer in the residual module
-        relu is used as the default activation and no designation is allowed
-        
-        Caution: _reset_counter should be called first if this residual module is reused
-        """
-        name = self.get_name(name, 'dense_resnet')
-
-        with tf.variable_scope(name):
-            y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, training=self.training)
-            y = self.dense_norm_activation(y, units, kernel_initializer=kernel_initializer, 
-                                            norm=norm, activation=tf.nn.relu)
-            y = self.dense(y, units, kernel_initializer=kernel_initializer)
-            x += y
-
-        return x
-
-    def dense_resnet_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer() ,
-                                      norm=tc.layers.layer_norm, 
-                                      activation=tf.nn.relu, name=None):
-        """
-        normalization is used in both the last layer in the residual module and 
-        the layer immediately following the residual module
-        activation is used only in the layer immediately following the residual module
-        
-        Caution: _reset_counter should be called first if this residual module is reused
-        """
-        def layer_imp():
-            y = self.dense_resnet(x, units, kernel_initializer, norm)
-            y = tf_utils.norm_activation(y, norm, activation)
-
-            return y
-        
-        x = tf_utils.wrap_layer(name, layer_imp)
-
-        return x
-
     def conv(self, x, filters, kernel_size, strides=1, padding='same', 
               kernel_initializer=tf_utils.xavier_initializer(), name=None): 
         if padding.lower() != 'same' and padding.lower() != 'valid':
@@ -161,53 +122,25 @@ class Layer():
         x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
-    
-    def conv_resnet(self, x, filters, kernel_size, strides=1, padding='same', 
-                     kernel_initializer=tf_utils.kaiming_initializer(),
-                     norm=tf.layers.batch_normalization, name=None):
-        """
-        kernel_initializer specifies the initialization of the last layer in the residual module
-        relu is used as the default activation and no designation is allowed
-        
-        Caution: _reset_counter should be called first if this residual module is reused
-        """
-        name = self.get_name(name, 'conv_resnet')
 
+    def upsample(self, x):
+        h, w = x.get_shape().as_list()[1:-1]
+        x = tf.image.resize_nearest_neighbor(x, [2 * h, 2 * w])
+        return x
+
+    def upsample_conv(self, x, filters, kernel_size, strides=1, padding='same', sn=True,
+                      kernel_initializer=tf_utils.kaiming_initializer(), name=None):
+        assert_colorize(padding.lower() != 'valid')
+        name = self.get_name(name, 'upsample_conv')
+        conv = self.snconv if sn else self.conv
         with tf.variable_scope(name):
-            y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, training=self.training, name='NormAct')
-            y = self.conv_norm_activation(y, filters, kernel_size=kernel_size, strides=strides, padding=padding, 
-                                           kernel_initializer=kernel_initializer, 
-                                           norm=norm, activation=tf.nn.relu)
-            y = self.conv(y, filters, kernel_size, strides=strides, padding=padding,
-                           kernel_initializer=kernel_initializer)
-            x += y
+            x = self.upsample(x)
+            x = conv(x, filters, kernel_size, 
+                    strides=strides, padding=padding, 
+                    kernel_initializer=kernel_initializer)
 
         return x
-    
-    def conv_resnet_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
-                                     kernel_initializer=tf_utils.kaiming_initializer(),
-                                     norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
-        """
-        normalization is used in both the last layer in the residual module and 
-        the layer immediately following the residual module
-        activation is used only in the layer immediately following the residual module
         
-        Caution: _reset_counter should be called first if this residual module is reused
-        """
-        def layer_imp():
-            y = self.conv_resnet(x, filters, kernel_size, 
-                                  strides=strides, padding=padding, 
-                                  kernel_initializer=kernel_initializer,
-                                  norm=norm)
-            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
-                                            training=self.training)
-
-            return y
-        
-        x = tf_utils.wrap_layer(name, layer_imp)
-
-        return x
-
     def convtrans(self, x, filters, kernel_size, strides, padding='same', 
                    kernel_initializer=tf_utils.xavier_initializer(), name=None): 
         padding = 'valid' if padding == 'valid' else 'same'
@@ -267,6 +200,48 @@ class Layer():
 
         return x
 
+    def resnet(self, x, layer, norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
+        """
+        x:      Input
+        layer:  Layer function,
+        Caution: _reset_counter should be called first if this residual module is reused
+        """
+        name = self.get_name(name, 'resnet')
+
+        y = x
+        with tf.variable_scope(name):
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
+            y = layer(y)
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
+            y = layer(y)
+            x = x + y
+
+        return x
+
+    def upsample_resnet(self, x, layer, norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
+        """
+        upsample a 4-D input tensor
+        x:      Input
+        layer:  Layer function,
+        Caution: _reset_counter should be called first if this residual module is reused
+        """
+        assert_colorize(len(x.shape.as_list()), f'Input x should be a 4-D tensor, but get {x.shape.as_list()}')
+        name = self.get_name(name, 'resnet')
+
+        y = x
+        with tf.variable_scope(name):
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
+            y = self.upsample(x)
+            y = layer(y)
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
+            y = layer(y)
+
+            x = self.upsample(x)
+            x = layer(x)
+            x = x + y
+
+        return x
+        
     def noisy(self, x, units, kernel_initializer=tf_utils.xavier_initializer(distribution='uniform'), 
                name=None, sigma=.4):
         """ noisy layer using factorized Gaussian noise """
@@ -347,47 +322,6 @@ class Layer():
 
         return x
 
-    def noisy_resnet(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
-                      norm=tc.layers.layer_norm, name=None, sigma=.4):
-        """
-        kernel_initializer specifies the initialization of the last layer in the residual module
-        relu is used as the default activation and no designation is allowed
-        
-        Caution: _reset_counter should be called first if this residual module is reused
-        """
-        name = self.get_name(name, 'noisy_resnet')
-
-        with tf.variable_scope(name):
-            y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, 
-                                         training=self.training)
-            y = self.noisy_norm_activation(y, units, kernel_initializer=kernel_initializer, 
-                                            norm=norm, activation=tf.nn.relu, sigma=sigma)
-            y = self.noisy(y, units, kernel_initializer=kernel_initializer, sigma=sigma)
-            x += y
-
-        return x
-    
-    def noisy_resnet_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
-                                      norm=tc.layers.layer_norm, activation=tf.nn.relu, 
-                                      name=None, sigma=.4):
-        """
-        normalization is used in both the last layer in the residual module and 
-        the layer immediately following the residual module
-        activation is used only in the layer immediately following the residual module
-        
-        Caution: _reset_counter should be called first if this residual module is reused
-        """
-        def layer_imp():
-            y = self.noisy_resnet(x, units, kernel_initializer, norm, sigma=sigma)
-            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
-                                         training=self.training)
-
-            return y
-        
-        x = tf_utils.wrap_layer(name, layer_imp)
-
-        return x
-
     def lstm(self, x, units, return_sequences=False):
         assert_colorize(len(x.shape.as_list()) == 3, f'Imput Shape Error: desire shape of dimension 3, get {len(x.shape.as_list())}')
         lstm_cell = tk.layers.CuDNNLSTM(units, return_sequences=return_sequences, return_state=True)
@@ -432,11 +366,11 @@ class Layer():
                                   initializer=tf.zeros_initializer())
 
             initial_state = tf.zeros([n_batch, 2*units], name='initial_state')
-            c, c = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
+            h, c = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
             xs = [tf.squeeze(v, [1]) for v in tf.split(value=x, num_or_size_splits=n_steps, axis=1)]
             for idx, (x, m) in enumerate(zip(xs, masks)):
-                c *= 1-masks
-                h *= 1-masks
+                c *= 1-m
+                h *= 1-m
                 z = ln(tf.matmul(x, x_w) + x_b) + ln(tf.matmul(h, h_w) + h_b)
                 f, i, o, u = tf.split(value=z, num_or_size_splits=4, axis=1)
                 f = tf.nn.sigmoid(f)
@@ -453,10 +387,6 @@ class Layer():
         return xs, (initial_state, final_state)
 
     def attention(self, q, k, v, mask=None):
-        assert_colorize(len(q.shape.as_list()) == 3, f'Error shape of q: {q}')
-        assert_colorize(len(k.shape.as_list()) == 3, f'Error shape of k: {k}')
-        assert_colorize(len(v.shape.as_list()) == 3, f'Error shape of v: {k}')
-
         dot_product = tf.matmul(q, k, transpose_b=True)
         if mask:
             dot_product *= mask
@@ -519,6 +449,7 @@ class Layer():
             gamma = tf.get_variable('gamma', [1], initializer=tf.zeros_initializer())
 
             o = tf.reshape(o, [-1, H, W, C])
+            conv(o, C, 1, 1)
             x = gamma * o + x
 
         return x

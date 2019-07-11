@@ -6,6 +6,7 @@
 - [x] Hinge Loss
 - [x] Self-Attention
 - [] Conditional Batch Normalization
+- [x] resize for upsampling
 
 ## Monitor Training
 
@@ -19,4 +20,12 @@ two-timescale update rule (TTUR): Heusel, M., Ramsauer, H., Unterthiner, T., Nes
 
 Spectral Normalization(SN): Miyato, T., Kataoka, T., Koyama, M., and Yoshida, Y. Spectral normalization for generative adversarial networks. In ICLR, 2018.
 
+Spectral Norm Regularization: Yuichi Yoshida et al. Spectral Norm Regularization for Improving the Generalizability of Deep Learning
+
 DCGANs: Alec Radford, Luke Metz, Soumith Chintala. Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Network
+
+Conditional Batch Normalization: Harm de Vries, Florian Strub et al. Modulating early visual processing by language
+
+Resize vs Deconvolution: https://distill.pub/2016/deconv-checkerboard/
+
+## Code Reference

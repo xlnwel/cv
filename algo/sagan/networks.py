@@ -30,39 +30,28 @@ class Generator(Module):
                          reuse=reuse)
 
     def _build_graph(self):
-        self.z = tf.random.normal((self.batch_size, self.z_dim))
+        self.z = tf.random.normal((self.batch_size, self.z_dim), name='z')
         self.image = self._net(self.z)
 
     def _net(self, z):
-        k = 1
-        def print_layer(x, layer):
-            pwc(f'{self.name} {layer} Layer {k}:\t{x.shape.as_list()}', 'magenta')
         bn = tf.layers.batch_normalization
         norm_ac = lambda x: tf_utils.norm_activation(x, norm=bn, activation=tf.nn.relu)
         conv = self.snconv if self.spectral_norm else self.conv
-        convtrans = self.snconvtrans if self.spectral_norm else self.convtrans
         dense = self.sndense if self.spectral_norm else self.dense
 
         x = dense(z, 4*4*512)
         x = tf.reshape(x, (-1, 4, 4, 512))
         x = norm_ac(x)
-        print_layer(x, 'Dense')
-        k += 1
 
         for i, (filters, kernel_size, strides) in enumerate(self.args['convtrans_params']):
             with tf.variable_scope(f'Block_{i}'):
-                x = convtrans(x, filters, kernel_size, strides, padding=self.padding)
+                x = self.upsample_conv(x, filters, kernel_size, strides, padding=self.padding, sn=self.spectral_norm)
                 x = norm_ac(x)
-            print_layer(x, 'ConvTrans')
-            k += 1
             if i in self.args['attention_layers']:
                 x = self.conv_attention(x)
-                print_layer(x, 'ConvAttention')
-                k += 1
         
         x = conv(x, 3, 3, 1)
         x = tf.tanh(x)
-        print_layer(x, 'Conv')
                     
         return x
 
@@ -93,9 +82,6 @@ class Discriminator(Module):
         self.logits, self.prob = self._net(self.image)
 
     def _net(self, x):
-        k = 1
-        def print_layer(x, layer):
-            pwc(f'{self.name} {layer} Layer {k}:\t{x.shape.as_list()}', 'magenta')
         bn = tf.layers.batch_normalization
         lrelu = lambda x: tf.maximum(self.args['lrelu_slope'] * x, x)
         norm_ac = lambda x: tf_utils.norm_activation(x, norm=bn, activation=lrelu)
@@ -105,16 +91,11 @@ class Discriminator(Module):
             with tf.variable_scope(f'Block_{i}'):
                 x = conv(x, filters, kernel_size, strides, padding=self.padding)
                 x = norm_ac(x)
-            print_layer(x, 'Conv')
-            k += 1
             if i in self.args['attention_layers']:
                 x = self.conv_attention(x)
-                print_layer(x, 'ConvAttention')
-                k += 1
         
         x = conv(x, 1, 4, 1, padding='valid')
         x = tf.reshape(x, (-1, 1))
-        print_layer(x, 'Conv')
         prob = tf.sigmoid(x)
 
         return x, prob
