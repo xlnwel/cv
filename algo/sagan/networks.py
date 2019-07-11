@@ -43,16 +43,15 @@ class Generator(Module):
         convtrans = self.snconvtrans if self.spectral_norm else self.convtrans
         dense = self.sndense if self.spectral_norm else self.dense
 
-        x = dense(z, 4*4*1024)
-        x = tf.reshape(x, (-1, 4, 4, 1024))
+        x = dense(z, 4*4*512)
+        x = tf.reshape(x, (-1, 4, 4, 512))
         x = norm_ac(x)
         print_layer(x, 'Dense')
         k += 1
 
-        trans_padding = 'valid' if self.padding == 'valid' else 'same'
         for i, (filters, kernel_size, strides) in enumerate(self.args['convtrans_params']):
             with tf.variable_scope(f'Block_{i}'):
-                x = convtrans(x, filters, kernel_size, strides, padding=trans_padding)
+                x = convtrans(x, filters, kernel_size, strides, padding=self.padding)
                 x = norm_ac(x)
             print_layer(x, 'ConvTrans')
             k += 1

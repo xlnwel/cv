@@ -1,5 +1,5 @@
 batch_size: 32
-image_shape: [128, 128, 3]
+image_shape: [64, 64, 3]
 
 train_dir: ../../dataset/celeba
 
@@ -12,8 +12,8 @@ model_name: baseline
 n_iterations: 5000000
 
 generator:
-    convtrans_params: [[512, 4, 2], [256, 4, 2], [128, 4, 2], [64, 4, 2], [32, 4, 2]]
-    attention_layers: [2]    # Insert attention to i-th convtras layer. Indices start from 0
+    convtrans_params: [[512, 4, 2], [256, 4, 2], [128, 4, 2], [64, 4, 2]]
+    attention_layers: [1]    # Insert attention to i-th convtras layer. Indices start from 0
     spectral_norm: True
     activation: relu
     padding: reflect
@@ -23,11 +23,11 @@ generator:
     beta2: 0.9
 
 discriminator:
-    conv_params: [[64, 4, 2], [128, 4, 2], [256, 4, 2], [512, 4, 2], [32, 4, 2]]
-    attention_layers: [2]    # Insert attention to i-th conv layer. Indices start from 0
+    conv_params: [[64, 4, 2], [128, 4, 2], [256, 4, 2], [512, 4, 2]]
+    attention_layers: [1]    # Insert attention to i-th conv layer. Indices start from 0
     spectral_norm: True
     activation: lrelu
-    padding: False
+    padding: reflect
     lrelu_slope: 0.2
     learning_rate: 0.0004
     beta1: 0

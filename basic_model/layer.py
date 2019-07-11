@@ -210,6 +210,7 @@ class Layer():
 
     def convtrans(self, x, filters, kernel_size, strides, padding='same', 
                    kernel_initializer=tf_utils.xavier_initializer(), name=None): 
+        padding = 'valid' if padding == 'valid' else 'same'
         return tf.layers.conv2d_transpose(x, filters, kernel_size, 
                                           strides=strides, padding=padding, 
                                           kernel_initializer=kernel_initializer, 
@@ -232,6 +233,7 @@ class Layer():
             output_shape = [B, (H-1) * strides + k_h, (W-1) * strides + k_w, filters]
         else:
             output_shape = [B, H * strides, W * strides, filters]
+            padding = 'SAME'    # treat all other forms padding as same
         
         with tf.variable_scope(name):
             w = tf.get_variable('weight', shape=[k_h, k_w, filters, x.shape[-1]], 
