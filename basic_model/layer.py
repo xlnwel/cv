@@ -462,7 +462,7 @@ class Layer():
             gamma = tf.get_variable('gamma', [1], initializer=tf.zeros_initializer())
 
             o = tf.reshape(o, [-1, H, W, C])
-            conv(o, C, 1, 1)
+            o = conv(o, C, 1, 1)
             x = gamma * o + x
 
         return x

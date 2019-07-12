@@ -43,7 +43,8 @@ class SAGAN(Model):
         start = time()
         times = deque(maxlen=100)
         for i in range(1, self.args['n_iterations'] + 1):
-            t, (_, summary) = timeit(lambda: self.sess.run([self.opt_op, self.graph_summary]))
+            t, (_, summary) = timeit(lambda: self.sess.run([self.opt_op, self.graph_summary],
+                                                            feed_dict={self.training: True}))
             times.append(t)
             print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
                     Average {np.mean(times):.3F} seconds per pass',
@@ -56,7 +57,8 @@ class SAGAN(Model):
     def _build_graph(self):
         with tf.device('/CPU: 0'):
             self.image = self._prepare_data()
-        self._training = tf.constant(True, dtype=tf.bool, name='training')
+        # define training as constant speeds up 
+        self._training = tf.placeholder(tf.bool, [], name='training')
 
         gen_args = self.args['generator']
         gen_args['batch_size'] = self.batch_size
