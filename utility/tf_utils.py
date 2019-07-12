@@ -16,10 +16,6 @@ def xavier_initializer(distribution='truncated_normal', seed=None):
 def constant_initializer(val):
     return tk.initializers.Constant(val)
 
-def bn_relu(x, training): 
-    """ batch normalization and relu """
-    return tf.nn.relu(tf.layers.batch_normalization(x, training=training))
-
 def layer_norm(x, name='LayerNorm', epsilon=1e-5):
     """ Layer normalization """
     with tf.variable_scope(name):
@@ -50,6 +46,11 @@ def instance_norm(x, name='InstanceNorm', epsilon=1e-5):
 
         x = gamma * x + beta
 
+    return x
+
+def upsample(x):
+    h, w = x.get_shape().as_list()[1:-1]
+    x = tf.image.resize_nearest_neighbor(x, [2 * h, 2 * w])
     return x
 
 def norm_activation(x, norm=None, activation=None, training=False, name=None):
@@ -126,10 +127,23 @@ def count_vars(scope, graph=tf.get_default_graph()):
     v = get_vars(scope, graph=graph)
     return sum([np.prod(var.shape.as_list()) for var in v])
 
-def padding(x, height, width, mode='constant', name=None):
+def padding(x, kernel_size, strides, mode='constant', name=None):
+    """ This function pads x so that a convolution with the same args downsamples x by a factor of strides.
+    It achieves it using the following equation:
+    W // S = (W - k_w + 2P) / S + 1
+    """
     assert_colorize(mode.lower() == 'constant' or mode.lower() == 'reflect' or mode.lower() == 'symmetric', 
         f'Padding should be "constant", "reflect", or "symmetric", but got {mode}.')
-    return tf.pad(x, [[0, 0], [height, height], [width, width], [0, 0]], mode, name=name)
+    H, W = x.shape.as_list()[1:3]
+    if isinstance(kernel_size, list) and len(kernel_size) == 2:
+        k_h, k_w = kernel_size
+    else:
+        k_h = k_w = kernel_size
+    p_h1 = int(((H / strides - 1) * strides - H + k_h) // strides)
+    p_h2 = int(((H / strides - 1) * strides - H + k_h) - p_h1)
+    p_w1 = int(((W / strides - 1) * strides - W + k_w) // strides)
+    p_w2 = int(((W / strides - 1) * strides - W + k_w) -p_w1)
+    return tf.pad(x, [[0, 0], [p_h1, p_h2], [p_w1, p_w2], [0, 0]], mode, name=name)
 
 def wrap_layer(name, layer_imp):
     if name:
@@ -174,4 +188,3 @@ def positional_encoding(indices, max_idx, dim, name='positional_encoding'):
         v = tf.nn.embedding_lookup(params, indices)
 
     return v
-

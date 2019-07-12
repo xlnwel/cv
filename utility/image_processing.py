@@ -3,11 +3,12 @@ from random import shuffle
 import numpy as np
 from skimage.data import imread
 from skimage.transform import resize
+from skimage.io import imsave
 import tensorflow as tf
 
 from utility.debug_tools import pwc, assert_colorize
 
-def get_image(image_path, image_shape=None, preserve_range=True):
+def read_image(image_path, image_shape=None, preserve_range=True):
     image = imread(image_path)
     if image_shape:
         image = resize(image, image_shape, preserve_range=preserve_range)
@@ -15,9 +16,50 @@ def get_image(image_path, image_shape=None, preserve_range=True):
 
     return image
 
-def norm_image(image):
-    # normalize to [0,1] range
-    return image / 255.0
+def norm_image(image, range=[0, 1]):
+    if range == [0, 1]:
+        return image / 255.0
+    elif range == [-1, 1]:
+        return image / 127.5 - 1
+    else:
+        raise NotImplementedError
+
+def save_image(images, path, size=None):
+    assert_colorize(len(images) == 4, f'images should be 4D, but get shape {images.shape}')
+    if size is None and images.shape[0] > 1:
+        n = images.shape[0]
+        w = 1
+        h = n // w
+        while w < h and h % 2 == 0:
+            w *= 2
+            h //= 2
+        if w < h:
+            w, h = h, w
+        size = (h, w)
+    if size:
+        images = merge(images, size)
+    imsave(path, images)
+
+def merge(images, size):
+    assert_colorize(len(images) == 4, f'images should be 4D, but get shape {images.shape}')
+    h, w = images.shape[1], images.shape[2]
+    if (images.shape[3] in (3,4)):
+        c = images.shape[3]
+        img = np.zeros((h * size[0], w * size[1], c))
+        for idx, image in enumerate(images):
+            i = idx % size[1]
+            j = idx // size[1]
+            img[j * h:j * h + h, i * w:i * w + w, :] = image
+        return img
+    elif images.shape[3]==1:
+        img = np.zeros((h * size[0], w * size[1]))
+        for idx, image in enumerate(images):
+            i = idx % size[1]
+            j = idx // size[1]
+            img[j * h:j * h + h, i * w:i * w + w] = image[:,:,0]
+        return img
+    else:
+        NotImplementedError
 
 def image_dataset(ds_dir, image_size, batch_size, norm=True):
     def preprocess_image(image):

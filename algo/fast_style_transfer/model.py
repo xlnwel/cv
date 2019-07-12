@@ -11,7 +11,7 @@ import tensorflow as tf
 from utility.debug_tools import timeit
 from utility.utils import pwc
 from utility.tf_utils import square_sum
-from utility.image_processing import get_image, image_dataset, ImageGenerator
+from utility.image_processing import read_image, image_dataset, ImageGenerator
 from basic_model.model import Model
 from networks import StyleTransfer, VGG19
 from utility.schedule import PiecewiseSchedule
@@ -33,8 +33,8 @@ class StyleTransferModel(Model):
         self.train_dir = args['train_dir']
         self.valid_dir = args['valid_dir']
         self.eval_image_path = args['eval_image_path']
-        self.eval_image = get_image(args['eval_image_path'], image_shape=self.image_shape)
-        self.style_image = get_image(args['style_image_path'], image_shape=self.image_shape)
+        self.eval_image = read_image(args['eval_image_path'], image_shape=self.image_shape)
+        self.style_image = read_image(args['style_image_path'], image_shape=self.image_shape)
         self.style_layers = args['style_layers']
         self.style_weights = args['style_weights']
         if not isinstance(self.style_weights, list):

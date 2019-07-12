@@ -11,7 +11,7 @@ import tensorflow as tf
 from utility.debug_tools import timeit
 from utility.utils import pwc
 from utility.tf_utils import square_sum
-from utility.image_processing import get_image, image_dataset, ImageGenerator
+from utility.image_processing import read_image, norm_image, image_dataset, ImageGenerator
 from basic_model.model import Model
 from networks import Generator, Discriminator
 
@@ -56,12 +56,14 @@ class SAGAN(Model):
     def _build_graph(self):
         with tf.device('/CPU: 0'):
             self.image = self._prepare_data()
+        self._training = tf.constant(True, dtype=tf.bool, name='training')
 
         gen_args = self.args['generator']
         gen_args['batch_size'] = self.batch_size
         self.generator = Generator('Generator', 
                                     gen_args, 
                                     self.graph, 
+                                    self.training,
                                     scope_prefix= self.name, 
                                     log_tensorboard=self.log_tensorboard,
                                     log_params=self.log_params)
@@ -71,14 +73,16 @@ class SAGAN(Model):
                                            dis_args, 
                                            self.graph, 
                                            self.gen_image,
+                                           self.training,
                                            scope_prefix= self.name,
                                            log_tensorboard=self.log_tensorboard,
                                            log_params=self.log_params)
-        self.normed_image = (self.image - 127.5) / 127.5
+        self.normed_image = norm_image(self.image, range=[-1, 1])
         self.real_discriminator = Discriminator('Discriminator',
                                                 dis_args,
                                                 self.graph,
                                                 self.normed_image,
+                                                self.training,
                                                 scope_prefix=self.name,
                                                 log_tensorboard=self.log_tensorboard,
                                                 log_params=self.log_params,
@@ -116,19 +120,20 @@ class SAGAN(Model):
 
     def _log_loss(self):
         if self.log_tensorboard:
-            with tf.name_scope('loss'):
-                tf.summary.scalar('generator_loss_', self.gen_loss)
-                tf.summary.scalar('discriminator_loss_', self.dis_loss)
-                tf.summary.scalar('loss_', self.gen_loss + self.dis_loss)
+            with tf.name_scope('logs'):
+                with tf.name_scope('loss'):
+                    tf.summary.scalar('generator_loss_', self.gen_loss)
+                    tf.summary.scalar('discriminator_loss_', self.dis_loss)
+                    tf.summary.scalar('loss_', self.gen_loss + self.dis_loss)
 
-            with tf.name_scope('image'):
-                tf.summary.image('generated_image_', self.gen_image, max_outputs=1)
-                tf.summary.histogram('generated_image_hist_', self.gen_image)
-                tf.summary.image('image_', self.normed_image, max_outputs=1)
-                tf.summary.histogram('image_hist_', self.normed_image)
-        
-            with tf.name_scope('prob'):
-                tf.summary.histogram('real_prob_his_', self.real_discriminator.prob)
-                tf.summary.histogram('fake_prob_hist_', self.fake_discriminator.prob)
-                tf.summary.scalar('real_prob_', tf.reduce_mean(self.real_discriminator.prob))
-                tf.summary.scalar('fake_prob_', tf.reduce_mean(self.fake_discriminator.prob))
+                with tf.name_scope('image'):
+                    tf.summary.image('generated_image_', self.gen_image, max_outputs=1)
+                    tf.summary.histogram('generated_image_hist_', self.gen_image)
+                    tf.summary.image('image_', self.normed_image, max_outputs=1)
+                    tf.summary.histogram('image_hist_', self.normed_image)
+            
+                with tf.name_scope('prob'):
+                    tf.summary.histogram('real_prob_his_', self.real_discriminator.prob)
+                    tf.summary.histogram('fake_prob_hist_', self.fake_discriminator.prob)
+                    tf.summary.scalar('real_prob_', tf.reduce_mean(self.real_discriminator.prob))
+                    tf.summary.scalar('fake_prob_', tf.reduce_mean(self.fake_discriminator.prob))

@@ -1,4 +1,4 @@
-We implement a fast style transfer algorithm based on [Perceptual Losses for Real-Time Style Transfer and Super-Resolution](ref1) and [Instance Normalization](#ref2)
+Fast style transfer based on [Perceptual Losses for Real-Time Style Transfer and Super-Resolution](ref1) and [Instance Normalization](#ref2)
 
 Although this algorithm is traiend with (256, 256, 3) images, it generalizes extremly well with high-dimensional image at test time. Once you train the network, feel free to run `eval.py` to try different scale images.
 
@@ -9,6 +9,10 @@ Code is tested with Python 3.7.3 and Tensorflow 1.13.1
 python train.py
 python eval.py -i=path_to_image -c=path_to_checkpoint
 ```
+
+## Monitor Training
+
+To monitor your training info, please open tensorboard with `tensorboard --logdir=logs`
 
 ## Examples
 

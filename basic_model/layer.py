@@ -15,23 +15,22 @@ class Layer():
 
     @property
     def training(self):
-        """ this property should only be used with batch normalization, 
+        """ This property should only be used with batch normalization, 
         self._training should be a boolean placeholder """
         return getattr(self, '_training', False)
 
     @property
-    def trainable(self):
-        return getattr(self, '_trainable', True)
-
-    @property
     def l2_regularizer(self):
+        """ Automatically pass l2 regularizer to all kernels in the Module if weight_decay is in args """
         return (tk.regularizers.l2(self.args['weight_decay']) 
                 if 'weight_decay' in self.args and self.args['weight_decay'] > 0
                 else None)
     
     @property
     def l2_loss(self):
-        return tf.losses.get_regularization_loss(scope=self.name, name=self.name + 'l2_loss')
+        """ Compute l2 loss if weight_decay is desired """
+        if self.l2_regularizer is not None:
+            return tf.losses.get_regularization_loss(scope=self.name, name=self.name + 'l2_loss')
 
     """ Layers
     The main reason why we define layers as member functions is 
@@ -71,7 +70,7 @@ class Layer():
     def conv(self, x, filters, kernel_size, strides=1, padding='same', 
               kernel_initializer=tf_utils.xavier_initializer(), name=None): 
         if padding.lower() != 'same' and padding.lower() != 'valid':
-            x = tf_utils.padding(x, kernel_size // 2, kernel_size // 2, mode=padding)
+            x = tf_utils.padding(x, kernel_size, strides, mode=padding)
             padding = 'valid'
 
         return tf.layers.conv2d(x, filters, kernel_size, 
@@ -92,7 +91,7 @@ class Layer():
 
         with tf.variable_scope(name):
             if padding.lower() != 'same' and padding.lower() != 'valid':
-                x = tf_utils.padding(x, kernel_size // 2, kernel_size // 2, mode=padding)
+                x = tf_utils.padding(x, kernel_size, strides, mode=padding)
                 padding = 'valid'
 
             w = tf.get_variable('weight', shape=[H, W, x.shape[-1], filters], 
@@ -123,20 +122,17 @@ class Layer():
 
         return x
 
-    def upsample(self, x):
-        h, w = x.get_shape().as_list()[1:-1]
-        x = tf.image.resize_nearest_neighbor(x, [2 * h, 2 * w])
-        return x
-
     def upsample_conv(self, x, filters, kernel_size, strides=1, padding='same', sn=True,
                       kernel_initializer=tf_utils.kaiming_initializer(), name=None):
-        assert_colorize(padding.lower() != 'valid')
+        """ Upscale x by a factor of 2
+
+        strides and padding have no effect, only to be consistent with other conv functions """
         name = self.get_name(name, 'upsample_conv')
         conv = self.snconv if sn else self.conv
         with tf.variable_scope(name):
-            x = self.upsample(x)
+            x = tf_utils.upsample(x)
             x = conv(x, filters, kernel_size, 
-                    strides=strides, padding=padding, 
+                    strides=1, padding='same', 
                     kernel_initializer=kernel_initializer)
 
         return x
@@ -220,7 +216,8 @@ class Layer():
 
     def upsample_resnet(self, x, layer, norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
         """
-        upsample a 4-D input tensor
+        upsample a 4-D input tensor in a residual module, follows this implementation
+        https://github.com/brain-research/self-attention-gan/blob/ad9612e60f6ba2b5ad3d3340ebae60f724636d75/generator.py#L78
         x:      Input
         layer:  Layer function,
         Caution: _reset_counter should be called first if this residual module is reused
@@ -231,12 +228,12 @@ class Layer():
         y = x
         with tf.variable_scope(name):
             y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
-            y = self.upsample(x)
+            y = tf_utils.upsample(x)
             y = layer(y)
             y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
             y = layer(y)
 
-            x = self.upsample(x)
+            x = tf_utils.upsample(x)
             x = layer(x)
             x = x + y
 
@@ -280,6 +277,7 @@ class Layer():
 
     def noisy2(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), 
                name=None, sigma=.4):
+        """ noisy layer """
         name = self.get_name(name, 'noisy')
         
         with tf.variable_scope(name):
@@ -321,6 +319,21 @@ class Layer():
         x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
+
+    def layer_norm_act(self, x, layer, norm=None, activation=tf.nn.relu, name=None):
+        """ This function implicitly handle training for batch normalization if self._training is defined """
+        def layer_imp():
+            y = x
+            y = layer(y)
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
+                                        training=self.training)
+
+            return y
+
+        x = tf_utils.wrap_layer(name, layer_imp)
+
+        return x
+
 
     def lstm(self, x, units, return_sequences=False):
         assert_colorize(len(x.shape.as_list()) == 3, f'Imput Shape Error: desire shape of dimension 3, get {len(x.shape.as_list())}')
@@ -469,4 +482,3 @@ class Layer():
             name = '{}_{}'.format(default_name, getattr(self, name_counter))
 
         return name
-

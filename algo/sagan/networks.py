@@ -12,6 +12,7 @@ class Generator(Module):
                  name, 
                  args, 
                  graph, 
+                 training,
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False,
@@ -20,6 +21,8 @@ class Generator(Module):
         self.padding = args['padding']
         self.spectral_norm = args['spectral_norm']
         self.batch_size = args['batch_size']
+
+        self._training = training   # argument 'training' for batch normalization
         self.variable_scope = self._get_variable_scope(scope_prefix, name)
 
         super().__init__(name, 
@@ -35,24 +38,22 @@ class Generator(Module):
 
     def _net(self, z):
         bn = tf.layers.batch_normalization
-        norm_ac = lambda x: tf_utils.norm_activation(x, norm=bn, activation=tf.nn.relu)
         conv = self.snconv if self.spectral_norm else self.conv
         dense = self.sndense if self.spectral_norm else self.dense
 
-        x = dense(z, 4*4*512)
-        x = tf.reshape(x, (-1, 4, 4, 512))
-        x = norm_ac(x)
+        layer = lambda x: tf.reshape(dense(x, 4*4*1024), (-1, 4, 4, 1024))
+        x = self.layer_norm_act(z, layer, norm=bn, name='InitialBlock')
+
 
         for i, (filters, kernel_size, strides) in enumerate(self.args['convtrans_params']):
-            with tf.variable_scope(f'Block_{i}'):
-                x = self.upsample_conv(x, filters, kernel_size, strides, padding=self.padding, sn=self.spectral_norm)
-                x = norm_ac(x)
+            layer = lambda x: self.upsample_conv(x, filters, kernel_size, strides, padding=self.padding, sn=self.spectral_norm)
+            x = self.layer_norm_act(x, layer, norm=bn, name=f'Block_{i}')
             if i in self.args['attention_layers']:
                 x = self.conv_attention(x)
         
         x = conv(x, 3, 3, 1)
         x = tf.tanh(x)
-                    
+
         return x
 
 class Discriminator(Module):
@@ -62,6 +63,7 @@ class Discriminator(Module):
                  args, 
                  graph, 
                  image,
+                 training,
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False,
@@ -69,6 +71,8 @@ class Discriminator(Module):
         self.image = image
         self.padding = args['padding']
         self.spectral_norm = args['spectral_norm']
+
+        self._training = training   # argument 'training' for batch normalization
         self.variable_scope = self._get_variable_scope(scope_prefix, name)
 
         super().__init__(name, 
@@ -84,13 +88,11 @@ class Discriminator(Module):
     def _net(self, x):
         bn = tf.layers.batch_normalization
         lrelu = lambda x: tf.maximum(self.args['lrelu_slope'] * x, x)
-        norm_ac = lambda x: tf_utils.norm_activation(x, norm=bn, activation=lrelu)
         conv = self.snconv if self.spectral_norm else self.conv
 
         for i, (filters, kernel_size, strides) in enumerate(self.args['conv_params']):
-            with tf.variable_scope(f'Block_{i}'):
-                x = conv(x, filters, kernel_size, strides, padding=self.padding)
-                x = norm_ac(x)
+            layer = lambda x: conv(x, filters, kernel_size, strides, padding=self.padding)
+            x = self.layer_norm_act(x, layer, norm=bn, activation=lrelu, name=f'Block_{i}')
             if i in self.args['attention_layers']:
                 x = self.conv_attention(x)
         

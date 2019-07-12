@@ -50,8 +50,9 @@ class StyleTransfer(Module):
 
             # ResNet, following paper "Identity Mappings in Deep Residual Networks"
             for i in range(self.args['n_residuals']):
-                x = self.conv_resnet(x, x.shape[-1], 3, 1, padding=self.padding, norm=norm, name=f'ResBlock_{i}')
-            x = tf_utils.norm_activation(x, norm, tf.nn.relu)
+                layer = lambda x: self.conv(x, x.shape[-1], 3, 1, padding=self.padding)
+                x = self.resnet(x, layer, norm=norm, name=f'ResBlock_{i}')
+            x = tf_utils.layer_norm_act(x, norm, tf.nn.relu)
 
             for i, (filters, kernel_size, strides) in enumerate(self.args['convtras_params']):
                 x = self.convtrans_norm_activation(x, filters, kernel_size, strides, norm=norm, name=f'ConvTrans_{i}')

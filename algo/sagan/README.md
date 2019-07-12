@@ -10,7 +10,7 @@
 
 ## Monitor Training
 
-To monitor your training info, please open tensorboard with `--logdir=logs`
+To monitor your training info, please open tensorboard with `tensorboard --logdir=logs`
 
 ## References
 
