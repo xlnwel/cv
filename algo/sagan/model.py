@@ -55,7 +55,7 @@ class SAGAN(Model):
                 self.writer.add_summary(summary, i)
                 self.save()
             else:
-                t1, _ = timeit(lambda: self.sess.run([self.dis_opt_op, self.graph_summary]))
+                t1, _ = timeit(lambda: self.sess.run([self.dis_opt_op]))
                 t2, _ = timeit(lambda: self.sess.run(self.gen_opt_op))
                 t = t1 + t2
                 times.append(t)

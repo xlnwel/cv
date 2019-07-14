@@ -41,14 +41,7 @@ class Generator(Module):
         relu = tf.nn.relu
         dense = self.sndense if self.spectral_norm else self.dense
         conv = self.snconv if self.spectral_norm else self.conv
-        convtrans = self.snconvtrans if self.spectral_norm else self.convtrans
-        def block(x, filters, i):
-            with tf.variable_scope(f'Block_{i}'):
-                x = self.upsample_conv(x, filters, 3, padding=self.padding, 
-                                       sn=self.spectral_norm, use_bias=False, 
-                                       name='UpsampleConv')
-                x = relu(bn(x))
-                return x
+
         def resblock(x, filters, i):
             with tf.variable_scope(f'Block_{i}'):
                 y = x
@@ -78,18 +71,6 @@ class Generator(Module):
 
         x = conv(x, 3, 3, 1, padding=self.padding, name='FinalLayer')
         x = tf.tanh(x)
-        # z: [None, z_dim]
-        # x = convtrans(z, 1024, 4, 1, use_bias=False)
-        # x = relu(bn(x))
-
-        # x = block(x, 512, 1)            # [None, 8, 8, 512]
-        # x = block(x, 256, 2)            # [None, 16, 16, 256]
-        # x = self.conv_attention(x, downsample=False)
-        # x = block(x, 128, 3)            # [None, 32, 32, 128]
-        # x = block(x, 64, 4)             # [None, 64, 64, 64]
-
-        # x = self.upsample_conv(x, 3, 3, 1, padding=self.padding, sn=self.spectral_norm, name='FinalLayer')
-        # x = tf.tanh(x)
 
         return x
 
@@ -128,12 +109,7 @@ class Discriminator(Module):
         conv = self.snconv if self.spectral_norm else self.conv
         dense = self.sndense if self.spectral_norm else self.dense
         downsample = lambda x, name: tf.nn.avg_pool(x, [1, 2, 2, 1], [1, 2, 2, 1], 'VALID', name=name)
-        # def block(x, filters, i):
-        #     with tf.variable_scope(f'Block_{i}'):
-        #         x = conv(x, filters, 4, 2, padding=self.padding, 
-        #                  use_bias=False, name='DownsampleConv')
-        #         x = lrelu(bn(x))
-        #     return x
+
         def initblock(x, filters):
             with tf.variable_scope('InitialBlock'):
                 y = x
@@ -173,19 +149,17 @@ class Discriminator(Module):
         x = self.conv_attention(x, downsample=True)
         x = resblock(x, 256, True, 2)                       # [None, 16, 16, 256]
         x = resblock(x, 512, True, 3)                       # [None, 8, 8, 512]
-        x = resblock(x, 1024, True, 4)                       # [None, 4, 4, 1024]
-        x = resblock(x, 1024, False, 5)                       # [None, 4, 4, 1024]
+        x = resblock(x, 1024, True, 4)                      # [None, 4, 4, 1024]
+        x = resblock(x, 1024, False, 5)                     # [None, 4, 4, 1024]
         x = lrelu(x)
         x = tf.reduce_sum(x, [1, 2])
-        x = dense(x, 1, name='FinalLayer')
-        # x = conv(x, 64, 4, 2, padding=self.padding)         # [None, 64, 64, 64]
-        # x = lrelu(x)
-        # x = block(x, 128, 1)                                # [None, 32, 32, 128]
-        # x = block(x, 256, 2)                                # [None, 16, 16, 256]
-        # x = self.conv_attention(x, downsample=False)
-        # x = block(x, 512, 3)                                # [None, 8, 8, 512]
-        # x = block(x, 1024, 5)                               # [None, 4, 4, 1024]
-        # x = conv(x, 4, 1, padding='valid', use_bias=False)
-        prob = tf.sigmoid(x)
+        out = dense(x, 1, name='FinalLayer')
+        if hasattr(self, 'label'):
+            assert_colorize(hasattr(self, 'n_classes'))
+            y = self.embedding(self.label, self.n_classes, 1024, True)
+            y = tf.reduce_mean(x * y, axis=1, keep_dims=True)
+            out += y
 
-        return x, prob
+        prob = tf.sigmoid(out)
+
+        return out, prob

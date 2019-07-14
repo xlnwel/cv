@@ -425,7 +425,7 @@ class Layer():
         # Test code to monitor saturation of softmax
         if self.log_tensorboard:
             with tf.name_scope('attention'):
-                tf_utils.stats_summary(weights, 'softmax')
+                tf_utils.stats_summary(weights, 'softmax', hist=True)
                 tf_utils.stats_summary(x, 'output')
         
         return x
@@ -494,6 +494,17 @@ class Layer():
             x = gamma * o + x
 
         return x
+
+    def embedding(self, x, n_classes, embedding_size, sn, name='embedding'):
+        with tf.variable_scope(name):
+            embedding_map = tf.get_variable(name='embedding_map',
+                                            shape=[n_classes, embedding_size],
+                                            initializer=tc.layers.xavier_initializer())
+            if sn:
+                embedding_map_trans = tf_utils.spectral_norm(tf.transpose(embedding_map))
+                embedding_map = tf.transpose(embedding_map_trans)
+
+            return tf.nn.embedding_lookup(embedding_map, x)
 
     """ Auxiliary functions """
     def reset_counter(self, name):

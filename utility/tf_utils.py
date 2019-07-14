@@ -159,17 +159,19 @@ def spectral_norm(w, iteration=1):
     w = tf.reshape(w, [-1, w_shape[-1]])    # [N, M]
 
     # [1, M]
-    u_var = tf.get_variable('u', [1, w_shape[-1]], initializer=tf.truncated_normal_initializer(), trainable=False)
+    u_var = tf.get_variable('u', [1, w_shape[-1]], 
+                            initializer=tf.truncated_normal_initializer(), 
+                            trainable=False)
     u = u_var
     # power iteration
     for _ in range(iteration):
-        v = tf.nn.l2_normalize(tf.matmul(u, w, transpose_b=True))   # [1, N]
-        u = tf.nn.l2_normalize(tf.matmul(v, w))                     # [1, M]
+        v = tf.nn.l2_normalize(tf.matmul(u, w, transpose_b=True))           # [1, N]
+        u = tf.nn.l2_normalize(tf.matmul(v, w))                             # [1, M]
 
-    sigma = tf.matmul(tf.matmul(v, w), u, transpose_b=True)         # [1, 1]
+    sigma = tf.squeeze(tf.matmul(tf.matmul(v, w), u, transpose_b=True))     # scalar
     w = w / sigma
 
-    with tf.control_dependencies([u_var.assign(u)]):                # we reuse u
+    with tf.control_dependencies([u_var.assign(u)]):                        # we reuse u
         w = tf.reshape(w, w_shape)
 
     return w
