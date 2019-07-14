@@ -122,7 +122,6 @@ class Module(Layer):
         with tf.name_scope(self.name + '_gradients'):
             with self.graph.control_dependencies(update_ops):
                 tvars = tvars if tvars else self.trainable_variables
-                pwc(tvars)
                 grads_vars = optimizer.compute_gradients(loss, var_list=tvars)
                 for i, (grad, var) in enumerate(grads_vars):
                     if grad is not None:

@@ -143,7 +143,8 @@ class Layer():
             x = conv(x, filters, kernel_size, 
                     strides=1, padding=padding,
                     use_bias=use_bias, 
-                    kernel_initializer=kernel_initializer)
+                    kernel_initializer=kernel_initializer,
+                    name='Conv')
 
         return x
         
@@ -254,7 +255,7 @@ class Layer():
 
         return x
         
-    def noisy(self, x, units, kernel_initializer=tc.layers.xavier_initializer()(distribution='uniform'), 
+    def noisy(self, x, units, kernel_initializer=tc.layers.xavier_initializer(), 
                name=None, sigma=.4):
         """ noisy layer using factorized Gaussian noise """
         name = self.get_name(name, 'noisy')
@@ -487,9 +488,9 @@ class Layer():
             o = tf.reshape(o, [-1, H, W, val_size])
             o = conv1x1(o, C, name='o')
 
-            gamma = tf.get_variable('gamma', [], initializer=tf.zeros_initializer())
+            gamma = tf.get_variable('gamma', [1], initializer=tf.zeros_initializer())
             if self.log_tensorboard:
-                tf.summary.scalar('gamma', gamma)
+                tf.summary.scalar('gamma', tf.reduce_mean(gamma))
             x = gamma * o + x
 
         return x

@@ -37,7 +37,7 @@ def pwc(string, color='red', bold=False, highlight=False):
         for s in string:
             print(colorize(s, color, bold, highlight))
     else:
-        l. ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,m bvgprint(colorize(string, color, bold, highlight))
+        print(colorize(string, color, bold, highlight))
 
 def normalize(x, mean=0., std=1., epsilon=1e-8):
     x = (x - np.mean(x)) / (np.std(x) + epsilon)

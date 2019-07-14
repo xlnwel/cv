@@ -43,17 +43,25 @@ class SAGAN(Model):
         start = time()
         times = deque(maxlen=100)
         for i in range(1, self.args['n_iterations'] + 1):
-            t1, (_, summary) = timeit(lambda: self.sess.run([self.dis_opt_op, self.graph_summary]))
-            t2, _ = timeit(lambda: self.sess.run(self.gen_opt_op))
-            t = t1 + t2
-            times.append(t)
-            print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
-                    Average {np.mean(times):.3F} seconds per pass',
-                  end='')
             if self._time_to_save(i, interval=500):
+                t1, (_, summary) = timeit(lambda: self.sess.run([self.dis_opt_op, self.graph_summary]))
+                t2, _ = timeit(lambda: self.sess.run(self.gen_opt_op))
+                t = t1 + t2
+                times.append(t)
+                print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
+                        Average {np.mean(times):.3F} seconds per pass',
+                    end='')
                 print()
                 self.writer.add_summary(summary, i)
                 self.save()
+            else:
+                t1, _ = timeit(lambda: self.sess.run([self.dis_opt_op, self.graph_summary]))
+                t2, _ = timeit(lambda: self.sess.run(self.gen_opt_op))
+                t = t1 + t2
+                times.append(t)
+                print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
+                        Average {np.mean(times):.3F} seconds per pass',
+                    end='')
 
     def _build_graph(self):
         with tf.device('/CPU: 0'):
