@@ -16,11 +16,11 @@ def read_image(image_path, image_shape=None, preserve_range=True):
 
     return image
 
-def norm_image(image, range=[0, 1]):
-    if range == [0, 1]:
+def norm_image(image, norm_range=[0, 1]):
+    if norm_range == [0, 1]:
         return image / 255.0
-    elif range == [-1, 1]:
-        return image / 127.5 - 1
+    elif norm_range == [-1, 1]:
+        return image / 127.5 - 1.
     else:
         raise NotImplementedError
 
@@ -61,12 +61,12 @@ def merge(images, size):
     else:
         NotImplementedError
 
-def image_dataset(ds_dir, image_size, batch_size, norm=True):
+def image_dataset(ds_dir, image_size, batch_size, norm_range=None):
     def preprocess_image(image):
         image = tf.image.decode_jpeg(image, channels=3)
         image = tf.image.resize(image, image_size)
-        if norm:
-            norm_image(image)
+        if norm_range:
+            image = norm_image(image, norm_range)
         return image
 
     def load_and_preprocess_image(path):
@@ -79,12 +79,13 @@ def image_dataset(ds_dir, image_size, batch_size, norm=True):
     pwc(f'Total Images: {len(all_image_paths)}', 'magenta')
     ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
     ds = ds.shuffle(buffer_size = len(all_image_paths))
-    ds = ds.map(load_and_preprocess_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     ds = ds.repeat()
+    ds = ds.map(load_and_preprocess_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     ds = ds.batch(batch_size)
     ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
+    image = ds.make_one_shot_iterator().get_next('images')
 
-    return ds
+    return ds, image
 
 class ImageGenerator:
     def __init__(self, ds_dir, image_shape, batch_size, preserve_range=True):

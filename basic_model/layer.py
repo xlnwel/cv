@@ -36,12 +36,14 @@ class Layer():
     The main reason why we define layers as member functions is 
     that we want to automatically handle l2 regularization.
     """
-    def dense(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), name=None):
-        return tf.layers.dense(x, units, kernel_initializer=kernel_initializer, 
+    def dense(self, x, units, use_bias=True, kernel_initializer=tc.layers.xavier_initializer(), name=None):
+        return tf.layers.dense(x, units, 
+                               use_bias=use_bias,
+                               kernel_initializer=kernel_initializer, 
                                kernel_regularizer=self.l2_regularizer, 
                                name=name)
 
-    def sndense(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), name=None):
+    def sndense(self, x, units, use_bias=True, kernel_initializer=tc.layers.xavier_initializer(), name=None):
         name = self.get_name(name, 'sndense')
 
         with tf.variable_scope(name):
@@ -49,8 +51,10 @@ class Layer():
                                 initializer=kernel_initializer, 
                                 regularizer=self.l2_regularizer)
             w = tf_utils.spectral_norm(w)
-            b = tf.get_variable('bias', [units], initializer=tf.zeros_initializer())
-            x = tf.matmul(x, w) + b
+            x = tf.matmul(x, w)
+            if use_bias:
+                b = tf.get_variable('bias', [units], initializer=tf.zeros_initializer())
+                x = x + b
 
         return x
 
@@ -67,20 +71,23 @@ class Layer():
 
         return x
 
-    def conv(self, x, filters, kernel_size, strides=1, padding='same', 
-              kernel_initializer=tf_utils.xavier_initializer(), name=None): 
+    def conv(self, x, filters, kernel_size, strides=1, padding='same', use_bias=True,
+              kernel_initializer=tc.layers.xavier_initializer(), name=None): 
         if padding.lower() != 'same' and padding.lower() != 'valid':
             x = tf_utils.padding(x, kernel_size, strides, mode=padding)
             padding = 'valid'
 
-        return tf.layers.conv2d(x, filters, kernel_size, 
-                                strides=strides, padding=padding, 
+        return tf.layers.conv2d(x, filters, 
+                                kernel_size, 
+                                strides=strides, 
+                                padding=padding, 
+                                use_bias=use_bias,
                                 kernel_initializer=kernel_initializer, 
                                 kernel_regularizer=self.l2_regularizer, 
                                 name=name)
 
-    def snconv(self, x, filters, kernel_size, strides=1, padding='same', 
-              kernel_initializer=tf_utils.xavier_initializer(), name=None):
+    def snconv(self, x, filters, kernel_size, strides=1, padding='same', use_bias=True,
+              kernel_initializer=tc.layers.xavier_initializer(), name=None):
         name = self.get_name(name, 'snconv')
         if isinstance(kernel_size, list):
             assert_colorize(len(kernel_size) == 2)
@@ -100,8 +107,9 @@ class Layer():
             w = tf_utils.spectral_norm(w)
             x = tf.nn.conv2d(x, w, strides=(1, strides, strides, 1), padding=padding.upper())
 
-            b = tf.get_variable('bias', [filters], initializer=tf.zeros_initializer())
-            x = tf.nn.bias_add(x, b)
+            if use_bias:
+                b = tf.get_variable('bias', [filters], initializer=tf.zeros_initializer())
+                x = tf.nn.bias_add(x, b)
 
         return x
 
@@ -122,32 +130,37 @@ class Layer():
 
         return x
 
-    def upsample_conv(self, x, filters, kernel_size, strides=1, padding='same', sn=True,
-                      kernel_initializer=tf_utils.kaiming_initializer(), name=None):
-        """ Upscale x by a factor of 2
+    def upsample_conv(self, x, filters, kernel_size, strides=1, 
+                      padding='same', sn=True, use_bias=True,
+                      kernel_initializer=tc.layers.xavier_initializer(), name=None):
+        """ Upscale x by a factor of 4
 
-        strides and padding have no effect, only to be consistent with other conv functions """
+        strides has no effect, only to be consistent with other conv functions """
         name = self.get_name(name, 'upsample_conv')
         conv = self.snconv if sn else self.conv
         with tf.variable_scope(name):
             x = tf_utils.upsample(x)
             x = conv(x, filters, kernel_size, 
-                    strides=1, padding='same', 
+                    strides=1, padding=padding,
+                    use_bias=use_bias, 
                     kernel_initializer=kernel_initializer)
 
         return x
         
-    def convtrans(self, x, filters, kernel_size, strides, padding='same', 
-                   kernel_initializer=tf_utils.xavier_initializer(), name=None): 
+    def convtrans(self, x, filters, kernel_size, strides, 
+                  padding='same', use_bias=True,
+                  kernel_initializer=tc.layers.xavier_initializer(), name=None): 
         padding = 'valid' if padding == 'valid' else 'same'
         return tf.layers.conv2d_transpose(x, filters, kernel_size, 
-                                          strides=strides, padding=padding, 
+                                          strides=strides, padding=padding,
+                                          use_bias=use_bias, 
                                           kernel_initializer=kernel_initializer, 
                                           kernel_regularizer=self.l2_regularizer, 
                                           name=name)
 
-    def snconvtrans(self, x, filters, kernel_size, strides, padding='same', 
-              kernel_initializer=tf_utils.xavier_initializer(), name=None):
+    def snconvtrans(self, x, filters, kernel_size, strides, 
+                    padding='same', use_bias=True,
+                    kernel_initializer=tc.layers.xavier_initializer(), name=None):
         name = self.get_name(name, 'snconvtrans')
         if isinstance(kernel_size, list):
             assert_colorize(len(kernel_size) == 2)
@@ -173,9 +186,10 @@ class Layer():
                                         output_shape=output_shape, 
                                         strides=[1, strides, strides, 1], 
                                         padding=padding.upper())
-
-            b = tf.get_variable('bias', [filters], initializer=tf.zeros_initializer())
-            x = tf.nn.bias_add(x, b)
+            
+            if use_bias:
+                b = tf.get_variable('bias', [filters], initializer=tf.zeros_initializer())
+                x = tf.nn.bias_add(x, b)
 
         return x
 
@@ -196,25 +210,26 @@ class Layer():
 
         return x
 
-    def resnet(self, x, layer, norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
+    def residual(self, x, layer, norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
         """
         x:      Input
         layer:  Layer function,
         Caution: _reset_counter should be called first if this residual module is reused
         """
-        name = self.get_name(name, 'resnet')
+        name = self.get_name(name, 'residual')
 
         y = x
         with tf.variable_scope(name):
-            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training, name='NormAct_1')
             y = layer(y)
-            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training, name='NormAct_2')
             y = layer(y)
             x = x + y
 
         return x
 
-    def upsample_resnet(self, x, layer, norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
+    def upsample_residual(self, x, filters, padding, sn, 
+                        norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
         """
         upsample a 4-D input tensor in a residual module, follows this implementation
         https://github.com/brain-research/self-attention-gan/blob/ad9612e60f6ba2b5ad3d3340ebae60f724636d75/generator.py#L78
@@ -222,24 +237,24 @@ class Layer():
         layer:  Layer function,
         Caution: _reset_counter should be called first if this residual module is reused
         """
+        assert_colorize(padding.lower() != 'valid')
         assert_colorize(len(x.shape.as_list()), f'Input x should be a 4-D tensor, but get {x.shape.as_list()}')
-        name = self.get_name(name, 'resnet')
+        name = self.get_name(name, 'residual')
 
         y = x
+        conv = self.snconv if sn else self.conv
         with tf.variable_scope(name):
-            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
-            y = tf_utils.upsample(x)
-            y = layer(y)
-            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training)
-            y = layer(y)
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training, name='NormAct_1')
+            y = self.upsample_conv(y, filters, 3, 1, padding=padding, sn=sn, name='UpsampleConv')
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training, name='NormAct_2')
+            y = conv(y, filters, 3, 1, padding=padding, name='Conv')
 
-            x = tf_utils.upsample(x)
-            x = layer(x)
+            x = self.upsample_conv(x, filters, 1, 1, sn=sn, name='UpsampleConv1x1')
             x = x + y
 
         return x
         
-    def noisy(self, x, units, kernel_initializer=tf_utils.xavier_initializer(distribution='uniform'), 
+    def noisy(self, x, units, kernel_initializer=tc.layers.xavier_initializer()(distribution='uniform'), 
                name=None, sigma=.4):
         """ noisy layer using factorized Gaussian noise """
         name = self.get_name(name, 'noisy')
@@ -275,7 +290,7 @@ class Layer():
 
         return x
 
-    def noisy2(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), 
+    def noisy2(self, x, units, kernel_initializer=tc.layers.xavier_initializer(), 
                name=None, sigma=.4):
         """ noisy layer """
         name = self.get_name(name, 'noisy')
@@ -355,7 +370,7 @@ class Layer():
         return x, (initial_state, final_state)
 
     def lstm_norm(self, x, units, masks, norm=True):
-        kernel_initializer = tf_utils.kaiming_initializer() if norm else tf_utils.xavier_initializer()
+        kernel_initializer = tf_utils.kaiming_initializer() if norm else tc.layers.xavier_initializer()
         xw_shape = [x.shape.as_list()[-1], units]
         xb_shape = [units]
         hw_shape = [units, units]
@@ -400,11 +415,17 @@ class Layer():
         return xs, (initial_state, final_state)
 
     def attention(self, q, k, v, mask=None):
-        dot_product = tf.matmul(q, k, transpose_b=True)
+        # softmax(QK^T/)V
+        dot_product = tf.matmul(q, k, transpose_b=True) # [B, H, N, N]
         if mask:
             dot_product *= mask
-        weights = tf.nn.softmax(dot_product)
+        weights = tf.nn.softmax(dot_product)            # [B, H, N, V]
         x = tf.matmul(weights, v)
+        # Test code to monitor saturation of softmax
+        if self.log_tensorboard:
+            with tf.name_scope('attention'):
+                tf_utils.stats_summary(weights, 'softmax')
+                tf_utils.stats_summary(x, 'output')
         
         return x
 
@@ -428,11 +449,7 @@ class Layer():
 
             # softmax(QK^T/(d**2))V
             q *= key_size ** -0.5
-            dot_product = tf.matmul(q, k, transpose_b=True)  # [B, H, N, N]
-            if mask:
-                dot_product *= mask
-            weights = tf.nn.softmax(dot_product)
-            output = tf.matmul(weights, v)  # [B, H, N, V]
+            output = self.attention(q, k, v, mask)
 
             # [B, H, N, V] -> [B, N, H, V]
             output_transpose = tf.transpose(output, [0, 2, 1, 3])
@@ -442,27 +459,37 @@ class Layer():
 
         return x
 
-    def conv_attention(self, x, key_size=None, sn=True, name=None):
+    def conv_attention(self, x, key_size=None, val_size=None, sn=True, downsample=False, name=None):
         """ attention based on SA-GAN """
         H, W, C = x.shape.as_list()[1:]
         if key_size is None:
-            key_size = C // 8
+            key_size = C // 8   # default implementation suggested by SAGANs
+        if val_size is None:
+            val_size = C // 2
         conv = self.snconv if sn else self.conv
+        conv1x1 = lambda x, filters, name=None: conv(x, filters, 1, 1, use_bias=False, name=name)
         name = self.get_name(name, 'conv_attenion')
         with tf.variable_scope(name):
-            f = conv(x, key_size, 1, 1)
-            g = conv(x, key_size, 1, 1)
-            h = conv(x, C, 1, 1)
+            f = conv1x1(x, key_size, name='f')
+            g = conv1x1(x, key_size, name='g')
+            h = conv1x1(x, val_size, name='h')
+            f_len = gh_len = H * W 
+            if downsample:
+                g = tf.layers.max_pooling2d(g, 2, 2)
+                h = tf.layers.max_pooling2d(h, 2, 2)
+                gh_len = H * W // 4
 
-            f = tf.reshape(f, [-1, H * W, key_size])
-            g = tf.reshape(g, [-1, H * W, key_size])
-            h = tf.reshape(h, [-1, H * W, C])
+            f = tf.reshape(f, [-1, f_len, key_size])
+            g = tf.reshape(g, [-1, gh_len, key_size])
+            h = tf.reshape(h, [-1, gh_len, val_size])
 
             o = self.attention(f, g, h)
-            gamma = tf.get_variable('gamma', [1], initializer=tf.zeros_initializer())
+            o = tf.reshape(o, [-1, H, W, val_size])
+            o = conv1x1(o, C, name='o')
 
-            o = tf.reshape(o, [-1, H, W, C])
-            o = conv(o, C, 1, 1)
+            gamma = tf.get_variable('gamma', [], initializer=tf.zeros_initializer())
+            if self.log_tensorboard:
+                tf.summary.scalar('gamma', gamma)
             x = gamma * o + x
 
         return x

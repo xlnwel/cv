@@ -83,7 +83,7 @@ class StyleTransferModel(Model):
             print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
                     Average {np.mean(times):.3F} seconds per pass',
                   end='')
-            if self._time_to_save(i):
+            if self._time_to_save(i, interval=500):
                 self.evaluate(train_time=i)
                 print()
                 self.save()
@@ -119,9 +119,8 @@ class StyleTransferModel(Model):
     def _prepare_data(self):
         with tf.name_scope('image'):
             # Do not normalize image here, do it in StyleTransfer
-            ds = image_dataset(self.train_dir, self.image_shape[:-1], self.batch_size, False)
-            image = ds.make_one_shot_iterator().get_next('images')
-
+            ds, image = image_dataset(self.train_dir, self.image_shape[:-1], self.batch_size)
+            
         return image
         
     def _compute_gram_matrix(self, vgg_features):

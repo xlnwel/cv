@@ -1,10 +1,10 @@
 
 ## Algorithms
 
-- [x] TTUR
+- [x] Self-Attention
 - [x] Spectral Normalization
 - [x] Hinge Loss
-- [x] Self-Attention
+- [x] TTUR
 - [] Conditional Batch Normalization
 - [x] resize for upsampling
 

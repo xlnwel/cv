@@ -58,7 +58,7 @@ def norm_activation(x, norm=None, activation=None, training=False, name=None):
         y = x
         if norm:
             y = (norm(y, training=training) if
-                    'batch_normalization' in str(norm) else
+                    'batch_norm' in str(norm) else
                     norm(y))
         if activation:
             y = activation(y)
@@ -110,7 +110,7 @@ def n_step_target(reward, done, nth_value, gamma, steps=1):
 
     return n_step_target
 
-def stats_summary(data, name, max=True, min=True, mean=True, hist=True):
+def stats_summary(data, name, max=False, min=False, mean=True, hist=False):
     if max:
         tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
     if min:
@@ -161,16 +161,15 @@ def spectral_norm(w, iteration=1):
     # [1, M]
     u_var = tf.get_variable('u', [1, w_shape[-1]], initializer=tf.truncated_normal_initializer(), trainable=False)
     u = u_var
-
+    # power iteration
     for _ in range(iteration):
-        # power iteration
         v = tf.nn.l2_normalize(tf.matmul(u, w, transpose_b=True))   # [1, N]
         u = tf.nn.l2_normalize(tf.matmul(v, w))                     # [1, M]
 
     sigma = tf.matmul(tf.matmul(v, w), u, transpose_b=True)         # [1, 1]
     w = w / sigma
 
-    with tf.control_dependencies([u_var.assign(u)]):
+    with tf.control_dependencies([u_var.assign(u)]):                # we reuse u
         w = tf.reshape(w, w_shape)
 
     return w

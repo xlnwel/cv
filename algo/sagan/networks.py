@@ -33,25 +33,34 @@ class Generator(Module):
                          reuse=reuse)
 
     def _build_graph(self):
-        self.z = tf.random.normal((self.batch_size, self.z_dim), name='z')
+        self.z = tf.random.uniform((self.batch_size, 1, 1, self.z_dim), minval=-1, maxval=1, name='z')
         self.image = self._net(self.z)
 
     def _net(self, z):
-        bn = tf.layers.batch_normalization
-        conv = self.snconv if self.spectral_norm else self.conv
+        bn = lambda x: tf.layers.batch_normalization(x, momentum=0.9, epsilon=1e-5, training=self.training)
+        relu = tf.nn.relu
         dense = self.sndense if self.spectral_norm else self.dense
+        convtrans = self.snconvtrans if self.spectral_norm else self.convtrans
+        def block(x, filters, i):
+            with tf.variable_scope(f'Block_{i}'):
+                x = self.upsample_conv(x, filters, 3, padding=self.padding, 
+                                       sn=self.spectral_norm, use_bias=False, 
+                                       name='UpsampleConv')
+                x = relu(bn(x))
+            return x
 
-        layer = lambda x: tf.reshape(dense(x, 4*4*1024), (-1, 4, 4, 1024))
-        x = self.layer_norm_act(z, layer, norm=bn, name='InitialBlock')
+        # Layer definition starts here
+        # z: [None, z_dim]
+        x = convtrans(z, 1024, 4, 1, use_bias=False)
+        x = relu(bn(x))
 
+        x = block(x, 512, 1)            # [None, 8, 8, 512]
+        x = block(x, 256, 2)            # [None, 16, 16, 256]
+        x = self.conv_attention(x, downsample=False)
+        x = block(x, 128, 3)            # [None, 32, 32, 128]
+        x = block(x, 64, 4)             # [None, 64, 64, 64]
 
-        for i, (filters, kernel_size, strides) in enumerate(self.args['convtrans_params']):
-            layer = lambda x: self.upsample_conv(x, filters, kernel_size, strides, padding=self.padding, sn=self.spectral_norm)
-            x = self.layer_norm_act(x, layer, norm=bn, name=f'Block_{i}')
-            if i in self.args['attention_layers']:
-                x = self.conv_attention(x)
-        
-        x = conv(x, 3, 3, 1)
+        x = self.upsample_conv(x, 3, 3, 1, padding=self.padding, sn=self.spectral_norm, name='FinalLayer')
         x = tf.tanh(x)
 
         return x
@@ -86,18 +95,27 @@ class Discriminator(Module):
         self.logits, self.prob = self._net(self.image)
 
     def _net(self, x):
-        bn = tf.layers.batch_normalization
-        lrelu = lambda x: tf.maximum(self.args['lrelu_slope'] * x, x)
+        bn = lambda x: tf.layers.batch_normalization(x, momentum=0.9, epsilon=1e-5, training=self.training)
+        lrelu = lambda x: tf.nn.leaky_relu(x, self.args['lrelu_slope'])
         conv = self.snconv if self.spectral_norm else self.conv
+        dense = self.sndense if self.spectral_norm else self.dense
+        def block(x, filters, i):
+            with tf.variable_scope(f'Block_{i}'):
+                x = conv(x, filters, 4, 2, padding=self.padding, 
+                         use_bias=False, name='DownsampleConv')
+                x = lrelu(bn(x))
+            return x
 
-        for i, (filters, kernel_size, strides) in enumerate(self.args['conv_params']):
-            layer = lambda x: conv(x, filters, kernel_size, strides, padding=self.padding)
-            x = self.layer_norm_act(x, layer, norm=bn, activation=lrelu, name=f'Block_{i}')
-            if i in self.args['attention_layers']:
-                x = self.conv_attention(x)
-        
-        x = conv(x, 1, 4, 1, padding='valid')
-        x = tf.reshape(x, (-1, 1))
-        prob = tf.sigmoid(x)
+        # Layer definition starts here
+        # x = [None, 128, 128, 3]
+        x = conv(x, 64, 4, 2, padding=self.padding)         # [None, 64, 64, 64]
+        x = lrelu(x)
+        x = block(x, 128, 1)                                # [None, 32, 32, 128]
+        x = block(x, 256, 2)                                # [None, 16, 16, 256]
+        x = self.conv_attention(x, downsample=False)
+        x = block(x, 512, 3)                                # [None, 8, 8, 512]
+        x = block(x, 1024, 5)                               # [None, 4, 4, 1024]
+        x = conv(x, 4, 1, padding='valid', use_bias=False)
+        prob = tf.sigmoid(tf.reduce_mean(x, [1, 2, 3]))
 
         return x, prob
