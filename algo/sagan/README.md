@@ -3,9 +3,9 @@
 - [x] Self-Attention                    [[paper](#ref1)][[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/basic_model/layer.py#L418)]
 - [x] Spectral Normalization            [[paper](#ref2)][[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/utility/tf_utils.py#L157)]
 - [x] Hinge Loss                        [[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/algo/sagan/model.py#L125)]
-- [x] TTUR                              [[paper]][(#ref3)[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/algo/sagan/args.yaml#L19)]
-- [x] Conditional Batch Normalization   [[paper]][(#ref5)[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/layers/cbn.py#L4)]
-- [x] Projection Discriminator          [[paper]][(ref6)[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/algo/sagan/networks.py#L186)]
+- [x] TTUR                              [[paper](#ref3)][[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/algo/sagan/args.yaml#L19)]
+- [x] Conditional Batch Normalization   [[paper](#ref5)][[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/layers/cbn.py#L4)]
+- [x] Projection Discriminator          [[paper](ref6)][[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/algo/sagan/networks.py#L186)]
 - [x] resize for upsampling             [[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/algo/sagan/networks.py#L69)]
 
 Conditional batch normalization and projection discriminator are conditioned on labels. However, since I haven't found a suitable dataset with labels(ImageNet is intimidatingly large and requires a specific email), they are not tested yet. But the implementation should(or maybe- -.) be correct.
@@ -14,8 +14,8 @@ Conditional batch normalization and projection discriminator are conditioned on 
 
 The algorithm is still under training. Following figures show the results at 93500 and 94000 iterations
 <p align = 'center'>
-<img src = 'data/results/0094000.jpg' height = '246px'>
-<img src = 'data/results/0093500.jpg' height = '246px'>
+<img src = 'data/results/0094000.png' height = '400px'>
+<img src = 'data/results/0093500.png' height = '400px'>
 </p>
 <p align = 'center'>
 
