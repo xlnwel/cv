@@ -43,6 +43,7 @@ class SAGAN(Model):
     def train(self):
         start = time()
         times = deque(maxlen=100)
+        
         for i in range(1, self.args['n_iterations'] + 1):
             if self._time_to_save(i, interval=500):
                 t1, (_, summary) = timeit(lambda: self.sess.run([self.dis_opt_op, self.graph_summary]))

@@ -423,9 +423,9 @@ class Layer():
         weights = tf.nn.softmax(dot_product)            # [B, H, N, N]
         x = tf.matmul(weights, v)                       # [B, H, N, V]
         # Test code to monitor saturation of softmax
-        if self.log_tensorboard:
+        if hasattr(self, 'log_params') and self.log_params:
             with tf.name_scope('attention'):
-                tf_utils.stats_summary(tf.reduce_sum(weights, axis=-1), 'softmax', hist=True)
+                tf_utils.stats_summary(weights, 'softmax', hist=True)
                 tf_utils.stats_summary(x, 'output')
         
         return x
@@ -489,7 +489,7 @@ class Layer():
             o = conv1x1(o, C, name='o')
 
             gamma = tf.get_variable('gamma', [1], initializer=tf.zeros_initializer())
-            if self.log_tensorboard:
+            if hasattr(self, 'log_params') and self.log_params:
                 tf.summary.scalar('gamma', tf.reduce_mean(gamma))
             x = gamma * o + x
 
