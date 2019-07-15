@@ -46,7 +46,7 @@ class SAGAN(Model):
         for i in range(1, self.args['n_iterations'] + 1):
             if self._time_to_save(i, interval=500):
                 t1, (_, summary) = timeit(lambda: self.sess.run([self.dis_opt_op, self.graph_summary]))
-                t2, (_, gen_image) = timeit(lambda: self.sess.run([self.gen_opt_op, self.gen_image_uint]))
+                t2, (_, gen_image) = timeit(lambda: self.sess.run([self.gen_opt_op, self.gen_image]))
                 t = t1 + t2
                 times.append(t)
                 print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
@@ -54,7 +54,7 @@ class SAGAN(Model):
                     end='')
                 print()
                 self.writer.add_summary(summary, i)
-                save_image(gen_image, f'{self.results_dir}/{i}.png')
+                save_image(gen_image, f'{self.results_dir}/{i:0>6d}.png')
                 self.save()
             else:
                 t1, _ = timeit(lambda: self.sess.run([self.dis_opt_op]))
@@ -81,7 +81,6 @@ class SAGAN(Model):
                                     log_tensorboard=self.log_tensorboard,
                                     log_params=self.log_params)
         self.gen_image = self.generator.image
-        self.gen_image_uint = tf.cast((self.gen_image + 1) * 127.5, tf.uint8)
         dis_args = self.args['discriminator']
         self.real_discriminator = Discriminator('Discriminator', 
                                                 dis_args, 
@@ -155,8 +154,8 @@ class SAGAN(Model):
                     tf.summary.scalar('loss_', self.gen_loss + self.dis_loss)
 
                 with tf.name_scope('image'):
-                    tf.summary.image('generated_image_', image_grid(self.gen_image_uint), max_outputs=1)
-                    tf.summary.histogram('generated_image_hist_', self.gen_image_uint)
+                    tf.summary.image('generated_image_', image_grid(self.gen_image), max_outputs=1)
+                    tf.summary.histogram('generated_image_hist_', self.gen_image)
                     gen_mean, gen_var = image_stats(self.gen_image)
                     real_mean, real_var = image_stats(self.image)
                     tf.summary.scalar('gen_mean_', gen_mean)
@@ -165,10 +164,13 @@ class SAGAN(Model):
                     tf.summary.scalar('real_var_', real_var)
             
                 with tf.name_scope('prob'):
-                    tf.summary.histogram('real_prob_his_', self.real_discriminator.prob)
+                    tf.summary.histogram('real_prob_hist_', self.real_discriminator.prob)
                     tf.summary.histogram('fake_prob_hist_', self.fake_discriminator.prob)
                     tf.summary.scalar('real_prob_', tf.reduce_mean(self.real_discriminator.prob))
                     tf.summary.scalar('fake_prob_', tf.reduce_mean(self.fake_discriminator.prob))
                 
                 with tf.name_scope('logit'):
-                    tf.summary.histogram
+                    tf.summary.histogram('real_logits_hist_', self.real_discriminator.logits)
+                    tf.summary.histogram('fake_logits_hist_', self.fake_discriminator.logits)
+                    tf.summary.histogram('real_logits_', tf.reduce_mean(self.real_discriminator.logits))
+                    tf.summary.histogram('fake_logits_', tf.reduce_mean(self.fake_discriminator.logits))

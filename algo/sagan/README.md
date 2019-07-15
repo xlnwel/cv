@@ -5,7 +5,7 @@
 - [x] Spectral Normalization
 - [x] Hinge Loss
 - [x] TTUR
-- [ ] Conditional Batch Normalization   [code]()
+- [ ] Conditional Batch Normalization
 - [ ] Projection Discriminator
 - [x] resize for upsampling
 
