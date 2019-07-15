@@ -7,11 +7,11 @@ from skimage.data import imread
 from skimage.transform import resize
 from skimage.io import imsave
 import tensorflow as tf
+import tensorflow.contrib.gan as tfgan
 
 from utility.debug_tools import timeit
-from utility.utils import pwc
-from utility.tf_utils import square_sum
-from utility.image_processing import read_image, norm_image, image_dataset, ImageGenerator
+from utility.utils import pwc, squarest_grid_size
+from utility.image_processing import read_image, save_image, image_dataset
 from basic_model.model import Model
 from networks import Generator, Discriminator
 
@@ -30,6 +30,7 @@ class SAGAN(Model):
         self.batch_size = args['batch_size']
         self.image_shape = args['image_shape']
         self.train_dir = args['train_dir']
+        self.results_dir = args['results_dir']
 
         super().__init__(name, args, 
                          sess_config=sess_config, 
@@ -45,7 +46,7 @@ class SAGAN(Model):
         for i in range(1, self.args['n_iterations'] + 1):
             if self._time_to_save(i, interval=500):
                 t1, (_, summary) = timeit(lambda: self.sess.run([self.dis_opt_op, self.graph_summary]))
-                t2, _ = timeit(lambda: self.sess.run(self.gen_opt_op))
+                t2, (_, gen_image) = timeit(lambda: self.sess.run([self.gen_opt_op, self.gen_image_uint]))
                 t = t1 + t2
                 times.append(t)
                 print(f'\rTraining Time: {(time() - start) / 60:.2f}m; Iterator {i};\t\
@@ -53,6 +54,7 @@ class SAGAN(Model):
                     end='')
                 print()
                 self.writer.add_summary(summary, i)
+                save_image(gen_image, f'{self.results_dir}/{i}.png')
                 self.save()
             else:
                 t1, _ = timeit(lambda: self.sess.run([self.dis_opt_op]))
@@ -78,20 +80,14 @@ class SAGAN(Model):
                                     scope_prefix= self.name, 
                                     log_tensorboard=self.log_tensorboard,
                                     log_params=self.log_params)
-        self.gen_image = Generator('Generator', 
-                                    gen_args, 
-                                    self.graph, 
-                                    False,
-                                    scope_prefix= self.name, 
-                                    log_tensorboard=False,
-                                    log_params=False,
-                                    reuse=True).image
-        self.fake_image = self.generator.image
+        self.gen_image = self.generator.image
+        self.gen_image_uint = tf.cast((self.gen_image + 1) * 127.5, tf.uint8)
         dis_args = self.args['discriminator']
         self.real_discriminator = Discriminator('Discriminator', 
                                                 dis_args, 
                                                 self.graph, 
                                                 self.image,
+                                                False,
                                                 self.training,
                                                 scope_prefix= self.name,
                                                 log_tensorboard=self.log_tensorboard,
@@ -99,7 +95,8 @@ class SAGAN(Model):
         self.fake_discriminator = Discriminator('Discriminator',
                                                 dis_args,
                                                 self.graph,
-                                                self.fake_image,
+                                                self.gen_image,
+                                                False,
                                                 self.training,
                                                 scope_prefix=self.name,
                                                 log_tensorboard=False,
@@ -118,7 +115,6 @@ class SAGAN(Model):
     def _prepare_data(self):
         with tf.name_scope('image'):
             _, image = image_dataset(self.train_dir, self.image_shape[:-1], self.batch_size, norm_range=[-1, 1])
-
         return image
 
     def _generator_loss(self):
@@ -135,6 +131,21 @@ class SAGAN(Model):
         return loss
 
     def _log_loss(self):
+        num_images = min(self.batch_size, 16)
+        image_shape = self.image_shape[:-1]
+        image_grid = lambda vis_images: tfgan.eval.image_grid(
+                           vis_images[:num_images],
+                           grid_shape=squarest_grid_size(
+                               num_images),
+                           image_shape=image_shape)
+
+        def image_stats(image):
+            means = tf.reduce_mean(image, 0, keep_dims=True)
+            vars = tf.reduce_mean(tf.squared_difference(image, means), 0, keep_dims=True)
+            mean, var = tf.reduce_mean(means), tf.reduce_mean(vars)
+
+            return mean, var
+
         if self.log_tensorboard:
             with tf.name_scope('logs'):
                 tf.summary.histogram('z_', self.generator.z)
@@ -144,13 +155,20 @@ class SAGAN(Model):
                     tf.summary.scalar('loss_', self.gen_loss + self.dis_loss)
 
                 with tf.name_scope('image'):
-                    tf.summary.image('generated_image_', self.fake_image, max_outputs=1)
-                    tf.summary.histogram('generated_image_hist_', self.fake_image)
-                    tf.summary.image('image_', self.image, max_outputs=1)
-                    tf.summary.histogram('image_hist_', self.image)
+                    tf.summary.image('generated_image_', image_grid(self.gen_image_uint), max_outputs=1)
+                    tf.summary.histogram('generated_image_hist_', self.gen_image_uint)
+                    gen_mean, gen_var = image_stats(self.gen_image)
+                    real_mean, real_var = image_stats(self.image)
+                    tf.summary.scalar('gen_mean_', gen_mean)
+                    tf.summary.scalar('gen_var_', gen_var)
+                    tf.summary.scalar('real_mean_', real_mean)
+                    tf.summary.scalar('real_var_', real_var)
             
                 with tf.name_scope('prob'):
                     tf.summary.histogram('real_prob_his_', self.real_discriminator.prob)
                     tf.summary.histogram('fake_prob_hist_', self.fake_discriminator.prob)
                     tf.summary.scalar('real_prob_', tf.reduce_mean(self.real_discriminator.prob))
                     tf.summary.scalar('fake_prob_', tf.reduce_mean(self.fake_discriminator.prob))
+                
+                with tf.name_scope('logit'):
+                    tf.summary.histogram

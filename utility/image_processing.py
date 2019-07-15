@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from random import shuffle
 import numpy as np
@@ -7,6 +8,7 @@ from skimage.io import imsave
 import tensorflow as tf
 
 from utility.debug_tools import pwc, assert_colorize
+import utility.utils as utils
 
 def read_image(image_path, image_shape=None, preserve_range=True):
     image = imread(image_path)
@@ -25,23 +27,16 @@ def norm_image(image, norm_range=[0, 1]):
         raise NotImplementedError
 
 def save_image(images, path, size=None):
-    assert_colorize(len(images) == 4, f'images should be 4D, but get shape {images.shape}')
-    if size is None and images.shape[0] > 1:
-        n = images.shape[0]
-        w = 1
-        h = n // w
-        while w < h and h % 2 == 0:
-            w *= 2
-            h //= 2
-        if w < h:
-            w, h = h, w
-        size = (h, w)
-    if size:
-        images = merge(images, size)
+    assert_colorize(len(images.shape) == 4, f'images should be 4D, but get shape {images.shape}')
+    num_images = images.shape[0]
+    if size is None:
+        size = utils.squarest_grid_size(num_images)
+    images = merge(images, size)
+    utils.check_make_dir(path)
     imsave(path, images)
 
 def merge(images, size):
-    assert_colorize(len(images) == 4, f'images should be 4D, but get shape {images.shape}')
+    assert_colorize(len(images.shape) == 4, f'images should be 4D, but get shape {images.shape}')
     h, w = images.shape[1], images.shape[2]
     if (images.shape[3] in (3,4)):
         c = images.shape[3]
@@ -79,8 +74,8 @@ def image_dataset(ds_dir, image_size, batch_size, norm_range=None):
     pwc(f'Total Images: {len(all_image_paths)}', 'magenta')
     ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
     ds = ds.shuffle(buffer_size = len(all_image_paths))
-    ds = ds.repeat()
     ds = ds.map(load_and_preprocess_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    ds = ds.repeat()
     ds = ds.batch(batch_size)
     ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
     image = ds.make_one_shot_iterator().get_next('images')

@@ -123,11 +123,17 @@ class Module(Layer):
             with self.graph.control_dependencies(update_ops):
                 tvars = tvars if tvars else self.trainable_variables
                 grads_vars = optimizer.compute_gradients(loss, var_list=tvars)
-                for i, (grad, var) in enumerate(grads_vars):
-                    if grad is not None:
-                        grads_vars[i] = (tf.clip_by_norm(grad, clip_norm), var)
+                # clip by global norm
+                grads, tvars = zip(*grads_vars)
+                grads, _ = tf.clip_by_global_norm(grads, clip_norm)
+                
+                return list(zip(grads, tvars))
+                # clip by norm
+                # for i, (grad, var) in enumerate(grads_vars):
+                #     if grad is not None:
+                #         grads_vars[i] = (tf.clip_by_norm(grad, clip_norm), var)
         
-        return grads_vars
+                # return grads_vars
 
     def _apply_gradients(self, optimizer, grads_and_vars, opt_step=None):
         opt_op = optimizer.apply_gradients(grads_and_vars, global_step=opt_step, name=self.name + '_apply_gradients')

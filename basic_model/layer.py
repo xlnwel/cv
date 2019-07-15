@@ -420,12 +420,12 @@ class Layer():
         dot_product = tf.matmul(q, k, transpose_b=True) # [B, H, N, N]
         if mask:
             dot_product *= mask
-        weights = tf.nn.softmax(dot_product)            # [B, H, N, V]
-        x = tf.matmul(weights, v)
+        weights = tf.nn.softmax(dot_product)            # [B, H, N, N]
+        x = tf.matmul(weights, v)                       # [B, H, N, V]
         # Test code to monitor saturation of softmax
         if self.log_tensorboard:
             with tf.name_scope('attention'):
-                tf_utils.stats_summary(weights, 'softmax', hist=True)
+                tf_utils.stats_summary(tf.reduce_sum(weights, axis=-1), 'softmax', hist=True)
                 tf_utils.stats_summary(x, 'output')
         
         return x
@@ -466,10 +466,10 @@ class Layer():
         if key_size is None:
             key_size = C // 8   # default implementation suggested by SAGANs
         if val_size is None:
-            val_size = C // 2
+            val_size = C // 2   # default implementation suggested by official SAGANs implementation
         conv = self.snconv if sn else self.conv
         conv1x1 = lambda x, filters, name=None: conv(x, filters, 1, 1, use_bias=False, name=name)
-        name = self.get_name(name, 'conv_attenion')
+        name = self.get_name(name, 'conv_attention')
         with tf.variable_scope(name):
             f = conv1x1(x, key_size, name='f')
             g = conv1x1(x, key_size, name='g')

@@ -1,8 +1,8 @@
-batch_size: 16
+batch_size: 32
 image_shape: [128, 128, 3]
 
 train_dir: ../../dataset/celebA
-
+results_dir: data/results
 # model path: model_root_dir/model_name
 # tensorboard path: log_root_dir/model_name
 model_root_dir: saved_models            # root path for savinng models
@@ -16,15 +16,15 @@ generator:
     activation: relu
     padding: same
     z_dim: 128
-    learning_rate: 0.0001
+    learning_rate: 5e-5
     beta1: 0
-    beta2: 0.9
+    # beta2: 0.9
 
 discriminator:
     spectral_norm: True
     activation: lrelu
-    padding: same
     lrelu_slope: 0.2
-    learning_rate: 0.0003
+    padding: same
+    learning_rate: 1e-4
     beta1: 0
-    beta2: 0.9
+    # beta2: 0.9

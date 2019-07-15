@@ -9,7 +9,7 @@ from skimage.io import imsave
 import tensorflow as tf
 
 from utility.debug_tools import timeit
-from utility.utils import pwc
+from utility.utils import pwc, check_make_dir
 from utility.tf_utils import square_sum
 from utility.image_processing import read_image, image_dataset, ImageGenerator
 from basic_model.model import Model
