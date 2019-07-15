@@ -88,6 +88,7 @@ class Layer():
 
     def snconv(self, x, filters, kernel_size, strides=1, padding='same', use_bias=True,
               kernel_initializer=tc.layers.xavier_initializer(), name=None):
+        """ Spectral normalized convolutional layer """
         name = self.get_name(name, 'snconv')
         if isinstance(kernel_size, list):
             assert_colorize(len(kernel_size) == 2)
@@ -250,7 +251,7 @@ class Layer():
             y = tf_utils.norm_activation(y, norm=norm, activation=activation, training=self.training, name='NormAct_2')
             y = conv(y, filters, 3, 1, padding=padding, name='Conv')
 
-            x = self.upsample_conv(x, filters, 1, 1, sn=sn, name='UpsampleConv1x1')
+            x = self.upsample_conv(x, filters, 1, 1, padding='VALID', sn=sn, name='UpsampleConv1x1')
             x = x + y
 
         return x

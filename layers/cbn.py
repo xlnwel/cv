@@ -5,19 +5,19 @@ class ConditionalBatchNorm:
     """Conditional BatchNorm.
     For each class, it has a specific gamma and beta as normalization variable.
     """
-    def __init__(self, num_categories, name='conditional_batch_norm', decay_rate=0.999):
+    def __init__(self, n_classes, name='conditional_batch_norm', decay_rate=0.999):
         with tf.variable_scope(name):
             self.name = name
-            self.num_categories = num_categories
+            self.n_classes = n_classes
             self.decay_rate = decay_rate
 
     def __call__(self, inputs, labels, is_training=True):
         # denote number of classes as N, number of features(channels) as F, length of labels as L 
         inputs = tf.convert_to_tensor(inputs)
         inputs_shape = inputs.get_shape()
-        params_shape = inputs_shape[-1:]  # shape F
+        params_shape = inputs_shape[-1:]  # F
         axis = [0, 1, 2]
-        shape = tf.TensorShape([self.num_categories]).concatenate(params_shape) # shape [N, F]
+        shape = tf.TensorShape([self.n_classes]).concatenate(params_shape) # shape [N, F]
         moving_shape = tf.TensorShape([1, 1, 1]).concatenate(params_shape)      # shape [1, 1, 1, F]
 
         with tf.variable_scope(self.name):
@@ -57,3 +57,12 @@ class ConditionalBatchNorm:
                     inputs, self.moving_mean, self.moving_var, beta, gamma, variance_epsilon)
             outputs.set_shape(inputs_shape)
             return outputs
+
+if __name__ == '__main__':
+    x = tf.reshape(tf.range(100, dtype=tf.float32), (5, 2, 2, 5))
+    bn = ConditionalBatchNorm(10)
+    labels = tf.range(5)
+    y = bn(x, labels)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        y = sess.run(y)

@@ -7,6 +7,7 @@ Datasets are by default located at `dataset/*`
 ## Algorithm Implemented
 
 - [x] Fast style transfer
+- [x] SAGAN
 
 ## References
 

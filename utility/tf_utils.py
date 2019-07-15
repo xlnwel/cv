@@ -171,7 +171,7 @@ def spectral_norm(w, iteration=1):
     sigma = tf.squeeze(tf.matmul(tf.matmul(v, w), u, transpose_b=True))     # scalar
     w = w / sigma
 
-    with tf.control_dependencies([u_var.assign(u)]):                        # we reuse u
+    with tf.control_dependencies([u_var.assign(u)]):                        # we reuse the value of u
         w = tf.reshape(w, w_shape)
 
     return w

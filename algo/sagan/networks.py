@@ -133,7 +133,6 @@ class Discriminator(Module):
         self.logits, self.prob = self._net(self.image)
 
     def _net(self, x):
-        bn = lambda x: tf.layers.batch_normalization(x, momentum=0.9, epsilon=1e-5, training=self.training)
         act = self.activation
         conv = self.snconv if self.spectral_norm else self.conv
         dense = self.sndense if self.spectral_norm else self.dense
@@ -184,7 +183,6 @@ class Discriminator(Module):
         x = tf.reduce_sum(x, [1, 2])
         out = dense(x, 1, name='Block_6')
         if self.label:
-            assert_colorize(hasattr(self, 'n_classes'))
             y = self.embedding(self.label, self.n_classes, 1024, True)
             y = tf.reduce_mean(x * y, axis=1, keep_dims=True)
             out += y
