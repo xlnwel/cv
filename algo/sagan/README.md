@@ -14,8 +14,8 @@ Conditional batch normalization and projection discriminator are conditioned on 
 
 The algorithm is still under training. Following figures show the results at 93500 and 94000 iterations
 <p align = 'center'>
-<img src = 'data/results/0094000.png' height = '400px'>
-<img src = 'data/results/0093500.png' height = '400px'>
+<img src = 'data/results/093500.png' height = '450px'>
+<img src = 'data/results/094000.png' height = '450px'>
 </p>
 <p align = 'center'>
 
