@@ -1,3 +1,5 @@
+Implementation of Self-Attention Generative Adversarial Networks.
+
 ## Algorithms Implemented
 
 - [x] Self-Attention                    [[paper](#ref1)][[code](https://github.com/xlnwel/cv/blob/38d5e7a4874538cf3809127c126735265f4a2129/basic_model/layer.py#L418)]
@@ -13,9 +15,9 @@ Conditional batch normalization and projection discriminator are conditioned on 
 ## Results
 
 The algorithm is still under training. Following figures show the results at 93500 and 94000 iterations
+
 <p align = 'center'>
-<img src = 'data/results/093500.png' height = '450px'>
-<img src = 'data/results/094000.png' height = '450px'>
+<img src = 'data/results/eval_0.png'>
 </p>
 <p align = 'center'>
 
@@ -37,6 +39,22 @@ To monitor your training info, please open tensorboard with `tensorboard --logdi
 
 6. <a name='ref6'></a>Projection Discriminator: Takeru Miyato et al. cGANs With Projection Discriminator
 
-Resize vs Deconvolution: https://distill.pub/2016/deconv-checkerboard/
+7. Resize vs Deconvolution: https://distill.pub/2016/deconv-checkerboard/
 
 ## Code Reference
+
+the official SAGAN code from Google Brain: https://github.com/brain-research/self-attention-gan
+
+## Datasets
+
+celebA
+
+```
+@inproceedings{liu2015faceattributes,
+ title = {Deep Learning Face Attributes in the Wild},
+ author = {Liu, Ziwei and Luo, Ping and Wang, Xiaogang and Tang, Xiaoou},
+ booktitle = {Proceedings of International Conference on Computer Vision (ICCV)},
+ month = {December},
+ year = {2015} 
+}
+```

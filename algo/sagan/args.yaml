@@ -3,6 +3,7 @@ image_shape: [128, 128, 3]
 
 train_dir: ../../dataset/celebA
 results_dir: data/results
+eval_batch_size: 60
 # model path: model_root_dir/model_name
 # tensorboard path: log_root_dir/model_name
 model_root_dir: saved_models            # root path for savinng models

@@ -3,8 +3,6 @@ import os.path as osp
 from time import time
 from collections import deque
 import numpy as np
-from skimage.data import imread
-from skimage.transform import resize
 from skimage.io import imsave
 import tensorflow as tf
 

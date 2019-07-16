@@ -58,6 +58,7 @@ class ConditionalBatchNorm:
             outputs.set_shape(inputs_shape)
             return outputs
 
+
 if __name__ == '__main__':
     x = tf.reshape(tf.range(100, dtype=tf.float32), (5, 2, 2, 5))
     bn = ConditionalBatchNorm(10)
@@ -66,3 +67,4 @@ if __name__ == '__main__':
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         y = sess.run(y)
+        print(y)

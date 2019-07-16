@@ -3,9 +3,6 @@ import os.path as osp
 from time import time
 from collections import deque
 import numpy as np
-from skimage.data import imread
-from skimage.transform import resize
-from skimage.io import imsave
 import tensorflow as tf
 import tensorflow.contrib.gan as tfgan
 
@@ -40,10 +37,16 @@ class SAGAN(Model):
                          log_stats=log_stats, 
                          device=device)
 
+    def evaluate(self, n_iterations=1):
+        for i in range(n_iterations):
+            t, image = timeit(lambda: self.sess.run(self.gen_image))
+            print(f'\rEvaluation Time: {t}')
+            save_image(image, f'{self.results_dir}/eval_{i}.png')
+
     def train(self):
         start = time()
         times = deque(maxlen=100)
-        
+
         for i in range(1, self.args['n_iterations'] + 1):
             if self._time_to_save(i, interval=500):
                 t1, (_, summary) = timeit(lambda: self.sess.run([self.dis_opt_op, self.graph_summary]))
@@ -81,6 +84,15 @@ class SAGAN(Model):
                                     scope_prefix= self.name, 
                                     log_tensorboard=self.log_tensorboard,
                                     log_params=self.log_params)
+        gen_args['batch_size'] = self.args['eval_batch_size']
+        self.generator = Generator('Generator', 
+                                    gen_args, 
+                                    self.graph, 
+                                    False,
+                                    scope_prefix= self.name, 
+                                    log_tensorboard=self.log_tensorboard,
+                                    log_params=self.log_params,
+                                    reuse=True)
         self.gen_image = self.generator.image
         dis_args = self.args['discriminator']
         self.real_discriminator = Discriminator('Discriminator', 

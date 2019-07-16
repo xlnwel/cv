@@ -71,7 +71,7 @@ def get_available_gpus():
 def timeformat(t):
     return f'{t:.2e}'
 
-def squarest_grid_size(num_images):
+def squarest_grid_size(num_images, more_on_width=True):
     """Calculates the size of the most square grid for num_images.
 
     Calculates the largest integer divisor of num_images less than or equal to
@@ -80,18 +80,18 @@ def squarest_grid_size(num_images):
 
     Args:
         num_images: The total number of images.
-
+        more_on_width: If cannot fit in a square, put more cells on width
     Returns:
         A tuple of (height, width) for the image grid.
     """
     divisors = sympy.divisors(num_images)
     square_root = math.sqrt(num_images)
-    width = 1
     for d in divisors:
         if d > square_root:
             break
-        width = d
-    return (num_images // width, width)
+    h, w = (num_images // d, d) if more_on_width else (d, num_images // d)
+
+    return (h, w)
 
 def check_make_dir(path):
     _, ext = osp.splitext(path)
