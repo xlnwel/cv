@@ -14,7 +14,7 @@ Conditional batch normalization and projection discriminator are conditioned on 
 
 ## Results
 
-The algorithm is still under training. Following figures show the results at 93500 and 94000 iterations
+Following figure shows the results after training 120k iterations.
 
 <p align = 'center'>
 <img src = 'data/results/eval_0.png'>
