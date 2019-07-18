@@ -5,7 +5,7 @@ train_dir: ../../dataset/coco2014/train2014
 valid_dir: ../../dataset/coco2014/val2014
 results_dir: data/results
 eval_image_path: data/content/stata.jpg
-style_image_path: data/style/udnie.jpg
+style_image_path: data/style/sketch.jpg
 style_weights: 100
 style_layers: [relu1_1, relu2_1, relu3_1, relu4_1, relu5_1]
 content_weight: 2
