@@ -1,5 +1,6 @@
 import os, random
 import os.path as osp
+import argparse
 import math
 import multiprocessing
 import numpy as np
@@ -47,6 +48,16 @@ def normalize(x, mean=0., std=1., epsilon=1e-8):
     x = x * std + mean
 
     return x
+
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def schedule(start_value, step, decay_steps, decay_rate):
     return start_value * decay_rate**(step // decay_steps)

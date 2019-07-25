@@ -21,6 +21,7 @@ class Module(Layer):
                  name, 
                  args, 
                  graph=tf.get_default_graph(),
+                 scope_prefix='',
                  log_tensorboard=False, 
                  log_params=False,
                  device=None,
@@ -45,6 +46,8 @@ class Module(Layer):
         self.log_params = log_params
         self.device = device
         self.reuse = reuse
+
+        self.variable_scope = self._get_variable_scope(scope_prefix, name)
 
         super().__init__(name, args)
 
@@ -100,7 +103,7 @@ class Module(Layer):
         epsilon = float(self.args['epsilon']) if 'epsilon' in self.args else 1e-8
 
         # setup optimizer
-        if opt_step:
+        if opt_step or 'decay_steps' in self.args:
             opt_step = tf.Variable(0, trainable=False, name='opt_step')
         else:
             opt_step = None
