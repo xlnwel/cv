@@ -126,7 +126,7 @@ class SAGAN(Model):
 
     def _prepare_data(self):
         with tf.name_scope('image'):
-            _, image = image_dataset(self.train_dir, self.image_shape[:-1], self.batch_size, norm_range=[-1, 1])
+            _, image = image_dataset(self.train_dir, self.batch_size, self.image_shape[:-1], norm_range=[-1, 1])
         return image
 
     def _generator_loss(self):

@@ -20,7 +20,6 @@ class StyleTransfer(Module):
         self.image = image / 255.
         self.padding = args['padding']
         self.norm = args['norm']
-        self.variable_scope = self._get_variable_scope(scope_prefix, name)
 
         super().__init__(name, 
                          args, 

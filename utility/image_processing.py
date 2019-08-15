@@ -56,7 +56,7 @@ def merge(images, size):
     else:
         NotImplementedError
 
-def image_dataset(ds_dir, image_size, batch_size, norm_range=None):
+def image_dataset(ds_dir, batch_size, image_size=None, norm_range=None):
     def preprocess_image(image):
         image = tf.image.decode_jpeg(image, channels=3)
         image = tf.image.resize(image, image_size)

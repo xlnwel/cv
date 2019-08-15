@@ -36,7 +36,6 @@ class Generator(Module):
         self.activation = get_activation(args['activation'], 'lrelu_slope' in args and args['lrelu_slope'])
 
         self._training = training   # argument 'training' for batch normalization
-        self.variable_scope = self._get_variable_scope(scope_prefix, name)
 
         super().__init__(name, 
                          args, 

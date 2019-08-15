@@ -117,7 +117,7 @@ class StyleTransferModel(Model):
     def _prepare_data(self):
         with tf.name_scope('image'):
             # Do not normalize image here, do it in StyleTransfer
-            ds, image = image_dataset(self.train_dir, self.image_shape[:-1], self.batch_size)
+            ds, image = image_dataset(self.train_dir, self.batch_size, self.image_shape[:-1])
             
         return image
         
