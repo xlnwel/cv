@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from model import StyleTransferModel
 from utility.utils import set_global_seed
-from run.grid_search import GridSearch
+from utility.grid_search import GridSearch
 
 
 def main(args):
