@@ -112,7 +112,7 @@ class StyleTransferModel(Model):
         self.opt_op, _, _ = self.st_net._optimization_op(self.loss)
 
         with tf.device('/CPU: 0'):
-            self._log_loss()
+            self._log_train_info()
 
     def _prepare_data(self):
         with tf.name_scope('image'):
@@ -162,18 +162,19 @@ class StyleTransferModel(Model):
             return self.tv_weight * (square_sum(st_image[:, 1:, :, :] - st_image[:, :-1, :, :]) / tv_size_1
                                     + square_sum(st_image[:, :, 1:, :] - st_image[:, :, :-1, :]) / tv_size_2)
 
-    def _log_loss(self):
+    def _log_train_info(self):
         if self.log_tensorboard:
-            with tf.name_scope('loss'):
-                tf.summary.scalar('style_loss_', self.style_loss)
-                tf.summary.scalar('content_loss_', self.content_loss)
-                tf.summary.scalar('tv_loss_', self.tv_loss)
-                tf.summary.scalar('loss_', self.loss)
+            with tf.name_scope('train_info'):
+                with tf.name_scope('loss'):
+                    tf.summary.scalar('style_loss_', self.style_loss)
+                    tf.summary.scalar('content_loss_', self.content_loss)
+                    tf.summary.scalar('tv_loss_', self.tv_loss)
+                    tf.summary.scalar('loss_', self.loss)
 
-            with tf.name_scope('style_image'):
-                tf.summary.image('original_image_', self.image, max_outputs=1)
-                tf.summary.image('st_image_', self.st_image, max_outputs=1)
-                tf.summary.histogram('st_image_hist_', self.st_image)
-                style = tf.constant(self.style_image)
-                tf.summary.image('style_image_', style)
-                tf.summary.histogram('style_image_hist_', self.style_image)
+                with tf.name_scope('style_image'):
+                    tf.summary.image('original_image_', self.image, max_outputs=1)
+                    tf.summary.image('st_image_', self.st_image, max_outputs=1)
+                    tf.summary.histogram('st_image_hist_', self.st_image)
+                    style = tf.constant(self.style_image)
+                    tf.summary.image('style_image_', style)
+                    tf.summary.histogram('style_image_hist_', self.style_image)

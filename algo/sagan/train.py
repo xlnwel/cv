@@ -29,7 +29,7 @@ def main(args, saved_model=None):
     # sess_config.gpu_options.per_process_gpu_memory_fraction = 0.45
     # remember to pass sess_config to Model
 
-    model = SAGAN('model', args, log_tensorboard=True, save=not saved_model, device='/gpu:0')
+    model = SAGAN('model', args, log_tensorboard=False, save=not saved_model, device='/gpu:0')
     if saved_model:
         model.restore(saved_model)
     model.train()

@@ -122,7 +122,7 @@ class SAGAN(Model):
         self.dis_opt_op, _, _ = self.real_discriminator._optimization_op(self.dis_loss)
         
         with tf.device('/CPU: 0'):
-            self._log_loss()
+            self._log_train_info()
 
     def _prepare_data(self):
         with tf.name_scope('image'):
@@ -142,7 +142,7 @@ class SAGAN(Model):
         
         return loss
 
-    def _log_loss(self):
+    def _log_train_info(self):
         num_images = min(self.batch_size, 16)
         image_shape = self.image_shape[:-1]
         image_grid = lambda vis_images: tfgan.eval.image_grid(
@@ -159,7 +159,7 @@ class SAGAN(Model):
             return mean, var
 
         if self.log_tensorboard:
-            with tf.name_scope('logs'):
+            with tf.name_scope('train_info'):
                 tf.summary.histogram('z_', self.generator.z)
                 with tf.name_scope('loss'):
                     tf.summary.scalar('generator_loss_', self.gen_loss)
