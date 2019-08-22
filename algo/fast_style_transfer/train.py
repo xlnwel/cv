@@ -20,7 +20,7 @@ def main(args):
 
     args['model_name'] = style_image
 
-    model = StyleTransferModel('model', args, log_tensorboard=False, save=False, device='/gpu:0')
+    model = StyleTransferModel('model', args, log_tensorboard=True, save=True, device='/gpu:0')
     model.train()
 
 if __name__ == '__main__':
