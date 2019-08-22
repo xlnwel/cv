@@ -29,7 +29,7 @@ def main():
     if cmd_args.batch_size:
         args['eval_batch_size'] = cmd_args
 
-    model = SAGAN('model', args, device='/cpu:0')
+    model = SAGAN('model', args, training=False)
     model.restore(cmd_args.checkpoint)
     model.evaluate(n_iterations=cmd_args.iterations)
 

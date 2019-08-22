@@ -18,12 +18,14 @@ class SAGAN(Model):
     def __init__(self, 
                  name, 
                  args,
+                 training=True,
                  sess_config=None, 
                  save=False, 
                  log_tensorboard=False, 
                  log_params=False, 
                  log_stats=False, 
                  device=None):
+        self._training = training
         self.batch_size = args['batch_size']
         self.image_shape = args['image_shape']
         self.train_dir = args['train_dir']
@@ -72,9 +74,6 @@ class SAGAN(Model):
     def _build_graph(self):
         with tf.device('/CPU: 0'):
             self.image = self._prepare_data()
-        # define training as constant speeds up 
-        self._training = True
-
         gen_args = self.args['generator']
         gen_args['batch_size'] = self.batch_size
         self.generator = Generator('Generator', 
@@ -84,15 +83,6 @@ class SAGAN(Model):
                                     scope_prefix= self.name, 
                                     log_tensorboard=self.log_tensorboard,
                                     log_params=self.log_params)
-        gen_args['batch_size'] = self.args['eval_batch_size']
-        self.generator = Generator('Generator', 
-                                    gen_args, 
-                                    self.graph, 
-                                    False,
-                                    scope_prefix= self.name, 
-                                    log_tensorboard=self.log_tensorboard,
-                                    log_params=self.log_params,
-                                    reuse=True)
         self.gen_image = self.generator.image
         dis_args = self.args['discriminator']
         self.real_discriminator = Discriminator('Discriminator', 
@@ -147,8 +137,7 @@ class SAGAN(Model):
         image_shape = self.image_shape[:-1]
         image_grid = lambda vis_images: tfgan.eval.image_grid(
                            vis_images[:num_images],
-                           grid_shape=squarest_grid_size(
-                               num_images),
+                           grid_shape=squarest_grid_size(num_images),
                            image_shape=image_shape)
 
         def image_stats(image):

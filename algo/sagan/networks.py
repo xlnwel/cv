@@ -40,6 +40,7 @@ class Generator(Module):
         super().__init__(name, 
                          args, 
                          graph, 
+                         scope_prefix=scope_prefix,
                          log_tensorboard=log_tensorboard, 
                          log_params=log_params,
                          reuse=reuse)
@@ -124,6 +125,7 @@ class Discriminator(Module):
         super().__init__(name, 
                          args, 
                          graph, 
+                         scope_prefix=scope_prefix,
                          log_tensorboard=log_tensorboard, 
                          log_params=log_params,
                          reuse=reuse)

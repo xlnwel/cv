@@ -7,7 +7,7 @@ import tensorflow as tf
 from model import SAGAN
 from utility.utils import set_global_seed
 from utility.yaml_op import load_args
-from utility.grid_search import GridSearch
+from run.grid_search import GridSearch
 
 
 def parse_cmd_args():

@@ -24,6 +24,7 @@ class StyleTransfer(Module):
         super().__init__(name, 
                          args, 
                          graph, 
+                         scope_prefix=scope_prefix,
                          log_tensorboard=log_tensorboard, 
                          log_params=log_params)
         
