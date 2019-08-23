@@ -42,7 +42,7 @@ class SAGAN(Model):
     def evaluate(self, n_iterations=1):
         for i in range(n_iterations):
             t, image = timeit(lambda: self.sess.run(self.gen_image))
-            print(f'\rEvaluation Time: {t}')
+            pwc(f'\rEvaluation Time: {t}', 'magenta')
             save_image(image, f'{self.results_dir}/eval_{i}.png')
 
     def train(self):

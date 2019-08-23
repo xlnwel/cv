@@ -15,23 +15,23 @@ def parse_cmd_args():
     parser.add_argument('--prefix', '-p',
                         default='',
                         help='prefix for model dir')
-    parser.add_argument('--saved_model', '-m',
+    parser.add_argument('--checkpoint', '-c',
                         type=str,
                         default='')
     args = parser.parse_args()
 
     return args
 
-def main(args, saved_model=None):
+def main(args, checkpoint=None):
     # you may need this code to train multiple instances on a single GPU
     # sess_config = tf.ConfigProto(allow_soft_placement=True)
     # sess_config.gpu_options.allow_growth=True
     # sess_config.gpu_options.per_process_gpu_memory_fraction = 0.45
     # remember to pass sess_config to Model
 
-    model = SAGAN('model', args, log_tensorboard=True, save=not saved_model, device='/gpu:0')
-    if saved_model:
-        model.restore(saved_model)
+    model = SAGAN('model', args, log_tensorboard=True, save=not checkpoint, device='/gpu:0')
+    if checkpoint:
+        model.restore(checkpoint)
     model.train()
 
 if __name__ == '__main__':
@@ -40,9 +40,9 @@ if __name__ == '__main__':
     set_global_seed()
     args_file = 'args.yaml'
 
-    if cmd_args.saved_model:
+    if cmd_args.checkpoint:
         args = load_args(args_file)
-        main(args, cmd_args.saved_model)
+        main(args, cmd_args.checkpoint)
 
     gs = GridSearch(args_file, main, dir_prefix=cmd_args.prefix)
 
