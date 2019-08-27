@@ -109,9 +109,7 @@ def compute_sample_mean_variance(samples, name='sample_mean_var'):
         covariance = 1 / (sample_size - 1.) * tf.matmul(samples_shifted, samples_shifted, transpose_a=True)
 
         # Take into account case of zero covariance
-        almost_zero_covariance = tf.fill(tf.shape(covariance), 1e-8)
-        is_zero = tf.equal(tf.reduce_sum(tf.abs(covariance)), 0)
-        covariance = tf.where(is_zero, almost_zero_covariance, covariance)
+        covariance = tf.clip_by_value(covariance, 1e-8, tf.reduce_max(covariance))
 
         return mean, covariance
 
