@@ -219,6 +219,8 @@ class Model(Module):
         if save:
             self.saver = self._setup_saver()
             self.model_file = self._setup_model_path(args['model_root_dir'], self.model_name)
+
+        pwc(f'{self.name} has been constructed', 'magenta')
     
     @property
     def global_variables(self):
@@ -252,9 +254,9 @@ class Model(Module):
             if print_terminal_info:
                 pwc('Model saved', 'magenta')
             return self.saver.save(self.sess, self.model_file)
-        else:
-            # no intention to treat no saver as an error, just print a warning message
-            pwc('No saver is available', 'magenta')
+        # else:
+        #     # no intention to treat no saver as an error, just print a warning message
+        #     pwc('No saver is available', 'magenta')
 
     def record_stats(self, **kwargs):
         self._record_stats_impl(kwargs)
