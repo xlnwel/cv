@@ -109,7 +109,7 @@ class StyleTransferModel(Model):
         with tf.name_scope('loss'):
             self.loss = self.style_loss + self.content_loss + self.tv_loss
 
-        self.opt_op, _, _ = self.st_net._optimization_op(self.loss)
+        _, _, _, _, self.opt_op = self.st_net._optimization_op(self.loss)
 
         with tf.device('/CPU: 0'):
             self._log_train_info()

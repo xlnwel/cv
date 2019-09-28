@@ -84,18 +84,18 @@ class Module(Layer):
     def _build_graph(self):
         raise NotImplementedError
         
-    def _optimization_op(self, loss, tvars=None, opt_step=None, schedule_lr=False):
-        with tf.variable_scope(self.name + '_optimizer'):
-            optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr)
+    def _optimization_op(self, loss, tvars=None, opt_step=None, schedule_lr=False, name=None):
+        with tf.variable_scope((name or self.name) + '_optimizer'):
+            optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr, name=name)
             grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
-            opt = self._apply_gradients(optimizer, grads_and_vars, opt_step)
+            opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
 
-        return opt, learning_rate, opt_step
+        return optimizer, learning_rate, opt_step, grads_and_vars, opt_op
 
-    def _adam_optimizer(self, opt_step=None, schedule_lr=False):
+    def _adam_optimizer(self, opt_step=None, schedule_lr=False, name=None):
         # params for optimizer
         if not schedule_lr:
-            learning_rate = float(self.args['learning_rate'])
+            learning_rate = float(self.args['learning_rate']) if name is None else float(self.args[f'{name}_lr'])
             decay_rate = float(self.args['decay_rate']) if 'decay_rate' in self.args else 1.
             decay_steps = float(self.args['decay_steps']) if 'decay_steps' in self.args else 1e6
         beta1 = float(self.args['beta1']) if 'beta1' in self.args else 0.9
@@ -163,6 +163,7 @@ class Model(Module):
                  args,
                  sess_config=None, 
                  save=False, 
+                 log=False,
                  log_tensorboard=False,
                  log_params=False,
                  log_stats=False,
@@ -179,10 +180,13 @@ class Model(Module):
         Keyword Arguments:
             sess_config {tf.ConfigProto} -- session configuration (default: {None})
             save {bool} -- Option for saving model (default: {True})
+            log {bool} -- Option for logging info using logger (default: {False})
             log_tensorboard {bool} -- Option for logging information to tensorboard (default: {False})
             log_params {bool} -- Option for logging parameters to tensorboard (default: {False})
             log_stats {bool} -- Option for logging score to tensorboard (default: {False})
             device {[str or None]} -- Device where graph build upon {default: {None}}
+            reuse {bool} -- Option for reusing graph {default: {None}}
+            graph {tf.Graph} -- tensorflow graph. Reconstruct a new one if None {default: {None}}
         """
 
         self.graph = graph if graph else tf.Graph()
@@ -203,12 +207,14 @@ class Model(Module):
         display_var_info(self.trainable_variables)
 
         self.model_name = args['model_name']
+        if log:
+            self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
+
         if self.log_tensorboard:
             self.graph_summary= self._setup_tensorboard_summary()
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if log_stats:
-            self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
             self.stats = self._setup_stats_logs(args['env_stats'])
 
         if log_tensorboard or log_stats:
@@ -220,8 +226,8 @@ class Model(Module):
             self.saver = self._setup_saver()
             self.model_file = self._setup_model_path(args['model_root_dir'], self.model_name)
 
-        pwc(f'{self.name} has been constructed', 'magenta')
-    
+        self.print_construction_complete()
+        
     @property
     def global_variables(self):
         return super().global_variables + self.graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope='stats')
@@ -234,7 +240,8 @@ class Model(Module):
         """
         To restore a specific version of model, set filename to the model stored in saved_models
         """
-        self.model_file = model_file
+        if model_file:
+            self.model_file = model_file
         if not hasattr(self, 'saver'):
             self.saver = self._setup_saver()
         try:
@@ -264,9 +271,12 @@ class Model(Module):
     def log_tabular(self, key, value):
         self.logger.log_tabular(key, value)
 
-    def dump_tabular(self, print_terminal_info=False):
+    def dump_tabular(self, print_terminal_info=True):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
 
+    def print_construction_complete(self):
+        pwc(f'{self.name} has been constructed', 'cyan')
+        
     """ Implementation """
     def _setup_saver(self):
         return tf.train.Saver(self.global_variables)
@@ -332,7 +342,14 @@ class Model(Module):
         else:
             no = kwargs['worker_no']
             del kwargs['worker_no']
-        
+
+        # if global_step appeas in kwargs, use it when adding summary to tensorboard
+        if 'global_step' in kwargs:
+            step = kwargs['global_step']
+            del kwargs['global_step']
+        else:
+            step = None
+
         feed_dict = {}
 
         for k, v in kwargs.items():
@@ -342,7 +359,7 @@ class Model(Module):
         score_count, summary = self.sess.run([self.stats[no]['counter'], self.stats[no]['log_op']], 
                                             feed_dict=feed_dict)
 
-        self.writer.add_summary(summary, score_count)
+        self.writer.add_summary(summary, step or score_count)
 
     def _time_to_save(self, train_steps, interval=100):
         return train_steps % interval == 0
