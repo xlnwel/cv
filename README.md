@@ -6,7 +6,7 @@ Datasets are by default located at `dataset/*`
 
 ## Algorithm Implemented
 
-- [x] Fast style transfer   [[ccode](https://github.com/xlnwel/cv/tree/master/algo/fast_style_transfer)]
+- [x] Fast style transfer   [[code](https://github.com/xlnwel/cv/tree/master/algo/fast_style_transfer)]
 - [x] SAGAN [[code](https://github.com/xlnwel/cv/tree/master/algo/sagan)]
 
 ## References
